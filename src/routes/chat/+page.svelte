@@ -108,6 +108,7 @@
 	});
 
 	function handleAdd(product) { cart.add(product); }
+	function handleRemove(id) { cart.remove(id); }
 	function handleAddAll(products) { products.forEach(p => cart.add(p)); }
 	function handleChipSelect(chipText) { sendMessage(chipText); }
 	function handleKeydown(e) {
@@ -121,7 +122,7 @@
 <div class="flex flex-col h-[100dvh] bg-base-200">
 	<!-- Header -->
 	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2">
-		<a href="{base}/" class="btn btn-ghost btn-sm btn-circle" aria-label="Назад">
+		<a href="{base}/" class="btn btn-ghost btn-sm btn-circle" aria-label="Назад" data-sveltekit-reload>
 			<ArrowLeft size={20} />
 		</a>
 		<span class="text-lg font-bold ml-2 flex-1">Подбор под задачу</span>
@@ -153,6 +154,7 @@
 				{message}
 				{cartIds}
 				onadd={handleAdd}
+				onremove={handleRemove}
 				onaddall={handleAddAll}
 			/>
 		{/each}

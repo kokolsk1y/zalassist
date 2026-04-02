@@ -96,6 +96,10 @@
 		cart.add(product);
 	}
 
+	function removeFromCart(id) {
+		cart.remove(id);
+	}
+
 	function isInCart(productId) {
 		return cart.items.some(i => i.id === productId);
 	}
@@ -105,7 +109,7 @@
 	<!-- Header -->
 	<div class="sticky top-0 bg-base-100 shadow-sm z-40 px-4 py-3">
 		<div class="flex items-center gap-3 max-w-md mx-auto">
-			<a href="{base}/" class="btn btn-ghost btn-sm btn-circle" aria-label="Назад">
+			<a href="{base}/" class="btn btn-ghost btn-sm btn-circle" aria-label="Назад" data-sveltekit-reload>
 				<ArrowLeft size={20} />
 			</a>
 			<div class="flex-1 relative">
@@ -181,6 +185,7 @@
 								{product}
 								onselect={(p) => selectedProduct = p}
 								onadd={addToCart}
+								onremove={removeFromCart}
 								inCart={isInCart(product.id)}
 							/>
 						{/each}
@@ -213,6 +218,7 @@
 						{product}
 						onselect={(p) => selectedProduct = p}
 						onadd={addToCart}
+						onremove={removeFromCart}
 						inCart={isInCart(product.id)}
 					/>
 				{/each}

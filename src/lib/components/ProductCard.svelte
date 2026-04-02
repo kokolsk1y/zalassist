@@ -1,7 +1,7 @@
 <script>
 	import { Plus, Check } from "lucide-svelte";
 
-	let { product, onselect, onadd, inCart = false } = $props();
+	let { product, onselect, onadd, onremove, inCart = false } = $props();
 </script>
 
 <div
@@ -25,8 +25,8 @@
 		<div class="card-actions justify-end mt-2">
 			<button
 				class="btn btn-sm btn-circle {inCart ? 'btn-success' : 'btn-primary'}"
-				onclick={(e) => { e.stopPropagation(); onadd?.(product); }}
-				aria-label="Добавить в список"
+				onclick={(e) => { e.stopPropagation(); inCart ? onremove?.(product.id) : onadd?.(product); }}
+				aria-label={inCart ? "Убрать из списка" : "Добавить в список"}
 			>
 				{#if inCart}
 					<Check size={16} />

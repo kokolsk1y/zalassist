@@ -6,7 +6,7 @@
 <div class="min-h-screen bg-base-200 flex flex-col">
 	<div class="sticky top-0 bg-base-100 shadow-sm z-40 px-4 py-3">
 		<div class="flex items-center gap-3 max-w-md mx-auto">
-			<a href="{base}/" class="btn btn-ghost btn-sm btn-circle" aria-label="Назад">
+			<a href="{base}/" class="btn btn-ghost btn-sm btn-circle" aria-label="Назад" data-sveltekit-reload>
 				<ArrowLeft size={20} />
 			</a>
 			<h1 class="text-lg font-bold">Готовые комплекты</h1>

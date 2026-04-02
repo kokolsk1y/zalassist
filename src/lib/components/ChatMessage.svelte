@@ -1,7 +1,7 @@
 <script>
 	import ProductCard from "./ProductCard.svelte";
 
-	let { message, onadd, onaddall, cartIds = new Set() } = $props();
+	let { message, onadd, onremove, onaddall, cartIds = new Set() } = $props();
 </script>
 
 <div class="chat {message.role === 'user' ? 'chat-end' : 'chat-start'}">
@@ -20,6 +20,7 @@
 				{product}
 				inCart={cartIds.has(product.id)}
 				onadd={() => onadd?.(product)}
+				onremove={(id) => onremove?.(id)}
 			/>
 		{/each}
 		<button

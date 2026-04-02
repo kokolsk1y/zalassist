@@ -9,7 +9,7 @@
 |-------|------|--------|
 | Phase 1 | Фундамент и деплой | complete |
 | Phase 2 | Поиск по каталогу | complete |
-| Phase 3 | ИИ-диалог | planned |
+| Phase 3 | ИИ-диалог | complete |
 | Phase 4 | Комплекты и финальная полировка | pending |
 
 ## Notes
