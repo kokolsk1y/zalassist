@@ -1,3 +1,11 @@
+## Project Configuration
+
+- **Language**: None
+- **Package Manager**: npm
+- **Add-ons**: none
+
+---
+
 # ZalAssist — Интерактивный помощник в торговом зале
 
 ## Статус: Инициализация проекта (Step 2 — Deep Project Questioning)
