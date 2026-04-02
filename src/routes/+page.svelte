@@ -31,10 +31,22 @@
 		}
 	});
 
+	const CHAT_KEYWORDS = ["хочу", "нужно", "сделать", "помоги", "подобрать", "посоветуй", "как ", "что нужно", "проводка", "ремонт", "установ"];
+
+	function looksLikeTask(text) {
+		const lower = text.toLowerCase();
+		return CHAT_KEYWORDS.some(kw => lower.includes(kw));
+	}
+
 	function handleSearch(e) {
 		e.preventDefault();
-		if (searchInput.trim()) {
-			goto(`${base}/search/?q=${encodeURIComponent(searchInput.trim())}`);
+		const q = searchInput.trim();
+		if (!q) return;
+		if (looksLikeTask(q)) {
+			// Похоже на задачу → в чат
+			goto(`${base}/chat/`, { state: { initialMessage: q } });
+		} else {
+			goto(`${base}/search/?q=${encodeURIComponent(q)}`);
 		}
 	}
 </script>
@@ -42,8 +54,8 @@
 <div class="min-h-screen bg-base-200 flex flex-col items-center px-4 pt-12 pb-8">
 	<!-- Лого -->
 	<div class="mb-8 text-center">
-		<h1 class="text-2xl font-bold text-primary">ЭлектроЦентр</h1>
-		<p class="text-sm text-base-content/60 mt-1">Помощник в торговом зале</p>
+		<img src="{base}/logo.png" alt="ЭлектроЦентр" class="h-10 mx-auto mb-2" />
+		<p class="text-sm text-base-content/60">Помощник в торговом зале</p>
 	</div>
 
 	<!-- Hero -->

@@ -7,6 +7,7 @@
 	import { streamChat } from "$lib/ai/client.js";
 	import { extractProducts } from "$lib/ai/parse.js";
 	import { cart } from "$lib/stores/cart.svelte.js";
+	import { toast } from "$lib/stores/toast.svelte.js";
 	import ChatMessage from "$lib/components/ChatMessage.svelte";
 	import QuickChips from "$lib/components/QuickChips.svelte";
 	import CartPanel from "$lib/components/CartPanel.svelte";
@@ -65,10 +66,30 @@
 			error = "Не удалось загрузить каталог";
 			console.error(e);
 		}
+		// Восстановить чат из sessionStorage
+		try {
+			const saved = sessionStorage.getItem("zalassist-chat");
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					messages = parsed.map(m => ({ ...m, streaming: false }));
+				}
+			}
+		} catch {}
 	});
 
 	onDestroy(() => {
 		abortFn?.();
+	});
+
+	// Сохранять чат в sessionStorage при изменении
+	$effect(() => {
+		if (messages.length > 0 && !isLoading) {
+			try {
+				const toSave = messages.map(m => ({ role: m.role, content: m.content, products: m.products }));
+				sessionStorage.setItem("zalassist-chat", JSON.stringify(toSave));
+			} catch {}
+		}
 	});
 
 	function sendMessage(text) {
@@ -125,9 +146,9 @@
 		}
 	});
 
-	function handleAdd(product) { cart.add(product); }
-	function handleRemove(id) { cart.remove(id); }
-	function handleAddAll(products) { products.forEach(p => cart.add(p)); }
+	function handleAdd(product) { cart.add(product); toast.show("✓ Добавлено в список"); }
+	function handleRemove(id) { cart.remove(id); toast.show("Убрано из списка"); }
+	function handleAddAll(products) { products.forEach(p => cart.add(p)); toast.show(`✓ Добавлено ${products.length} товаров`); }
 	function handleChipSelect(chipText) { sendMessage(chipText); }
 	function handleKeydown(e) {
 		if (e.key === "Enter" && !e.shiftKey && canSend) {

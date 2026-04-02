@@ -3,6 +3,7 @@
 
 	let { product, onclose, onadd } = $props();
 	let dialog;
+	let startY = 0;
 
 	$effect(() => {
 		if (product && dialog) {
@@ -11,10 +12,23 @@
 			dialog.close();
 		}
 	});
+
+	function handleTouchStart(e) {
+		startY = e.touches[0].clientY;
+	}
+
+	function handleTouchEnd(e) {
+		const diff = e.changedTouches[0].clientY - startY;
+		if (diff > 80) onclose?.(); // свайп вниз > 80px → закрыть
+	}
 </script>
 
 <dialog bind:this={dialog} class="modal modal-bottom" onclose={() => onclose?.()}>
-	<div class="modal-box rounded-t-2xl max-h-[80vh]">
+	<div class="modal-box rounded-t-2xl max-h-[80vh]"
+		ontouchstart={handleTouchStart}
+		ontouchend={handleTouchEnd}>
+		<!-- Индикатор свайпа -->
+		<div class="w-10 h-1 bg-base-300 rounded-full mx-auto mb-3"></div>
 		{#if product}
 			<!-- Артикул -->
 			<p class="font-mono text-lg text-primary font-bold">{product.article}</p>

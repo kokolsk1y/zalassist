@@ -7,6 +7,7 @@
 	import { loadCatalog } from "$lib/data/catalog.js";
 	import { createSearchEngine } from "$lib/search/engine.js";
 	import { cart } from "$lib/stores/cart.svelte.js";
+	import { toast } from "$lib/stores/toast.svelte.js";
 	import ProductCard from "$lib/components/ProductCard.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
 	import CartPanel from "$lib/components/CartPanel.svelte";
@@ -94,10 +95,12 @@
 
 	function addToCart(product) {
 		cart.add(product);
+		toast.show("✓ Добавлено в список");
 	}
 
 	function removeFromCart(id) {
 		cart.remove(id);
+		toast.show("Убрано из списка");
 	}
 
 	function isInCart(productId) {
@@ -194,7 +197,7 @@
 
 				<a href="{base}/chat/" class="btn btn-outline btn-sm gap-2 mt-6">
 					<MessageSquare size={16} />
-					Спросить ИИ (скоро)
+					Спросить ИИ-помощника
 				</a>
 			</div>
 		{:else}

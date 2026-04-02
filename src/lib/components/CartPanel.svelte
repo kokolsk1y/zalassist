@@ -1,7 +1,7 @@
 <script>
 	import { cart } from "$lib/stores/cart.svelte.js";
 	import { copyToClipboard } from "$lib/utils/clipboard.js";
-	import { X, Minus, Plus, Trash2, Copy, Check } from "lucide-svelte";
+	import { X, Minus, Plus, Trash2, Copy, Check, Mail, Send } from "lucide-svelte";
 
 	let { open, onclose } = $props();
 	let copied = $state(false);
@@ -54,8 +54,8 @@
 			</div>
 
 			<!-- Actions -->
-			<div class="flex gap-2">
-				<button class="btn btn-primary flex-1 gap-2"
+			<div class="flex flex-col gap-2">
+				<button class="btn btn-primary w-full gap-2"
 					onclick={() => {
 						copyToClipboard(cart.formatText());
 						copied = true;
@@ -67,8 +67,35 @@
 						<Copy size={18} /> Скопировать список
 					{/if}
 				</button>
-				<button class="btn btn-ghost" onclick={() => cart.clear()}>
-					Очистить
+
+				<!-- Поделиться -->
+				<div class="flex gap-2">
+					<a
+						href="mailto:?subject=Список товаров ЭлектроЦентр&body={encodeURIComponent(cart.formatText())}"
+						class="btn btn-outline btn-sm flex-1 gap-1"
+					>
+						<Mail size={16} /> Почта
+					</a>
+					<a
+						href="https://wa.me/?text={encodeURIComponent(cart.formatText())}"
+						target="_blank"
+						rel="noopener"
+						class="btn btn-outline btn-sm flex-1 gap-1"
+					>
+						<Send size={16} /> WhatsApp
+					</a>
+					<a
+						href="https://t.me/share/url?text={encodeURIComponent(cart.formatText())}"
+						target="_blank"
+						rel="noopener"
+						class="btn btn-outline btn-sm flex-1 gap-1"
+					>
+						<Send size={16} /> Telegram
+					</a>
+				</div>
+
+				<button class="btn btn-ghost btn-sm" onclick={() => cart.clear()}>
+					Очистить список
 				</button>
 			</div>
 		{/if}
