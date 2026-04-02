@@ -8,8 +8,8 @@
 | Phase | Name | Status |
 |-------|------|--------|
 | Phase 1 | Фундамент и деплой | complete |
-| Phase 2 | Поиск по каталогу | planned |
-| Phase 3 | ИИ-диалог | pending |
+| Phase 2 | Поиск по каталогу | complete |
+| Phase 3 | ИИ-диалог | planned |
 | Phase 4 | Комплекты и финальная полировка | pending |
 
 ## Notes

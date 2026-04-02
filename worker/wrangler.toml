@@ -1,0 +1,13 @@
+name = "zalassist-api"
+main = "index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Rate limiting: 20 requests per IP per hour
+# Note: if unsafe.bindings doesn't work on free tier,
+# fallback to in-memory rate limiting in index.js
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1"
+simple = { limit = 20, period = 3600 }
