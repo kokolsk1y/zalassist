@@ -54,7 +54,7 @@
 <div class="min-h-screen bg-base-200 flex flex-col items-center px-4 pt-12 pb-8">
 	<!-- Лого -->
 	<div class="mb-8 text-center">
-		<img src="{base}/logo.png" alt="ЭлектроЦентр" class="h-10 mx-auto mb-2" />
+		<img src="{base}/logo.png" alt="ЭлектроЦентр" class="h-10 mx-auto mb-2 rounded-lg bg-white px-3 py-1 shadow-sm" />
 		<p class="text-sm text-base-content/60">Помощник в торговом зале</p>
 	</div>
 
