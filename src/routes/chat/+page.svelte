@@ -20,50 +20,21 @@
 	const DEFAULT_FOLLOWUP = [
 		"Что ещё понадобится?",
 		"Покажи аналоги",
-		"Спасибо, этого достаточно"
+		"Расскажи подробнее"
 	];
 
 	/**
-	 * Генерация контекстных chips на основе последнего ответа ИИ.
+	 * Извлечь chips из ответа ИИ: [CHIPS: вариант1 | вариант2 | вариант3]
+	 * Возвращает { text, chips } — очищенный текст и массив chips.
 	 */
-	function generateChips(lastAssistantMsg) {
-		if (!lastAssistantMsg) return DEFAULT_FOLLOWUP;
-		const text = lastAssistantMsg.content || "";
-
-		// Ищем вопрос ИИ (последнее предложение с ?)
-		const sentences = text.split(/[.!?\n]/).map(s => s.trim()).filter(Boolean);
-		const question = [...sentences].reverse().find(s => text.includes(s + "?"));
-
-		const chips = [];
-
-		if (question) {
-			// ИИ задал вопрос — предложить утвердительный ответ
-			const q = question.toLowerCase();
-			if (q.includes("уточнить") || q.includes("хотите")) {
-				chips.push("Да, хочу уточнить");
-			} else if (q.includes("площадь") || q.includes("комнат") || q.includes("квартир")) {
-				chips.push("Однокомнатная", "Двухкомнатная", "Трёхкомнатная");
-			} else if (q.includes("сколько") || q.includes("количество")) {
-				chips.push("1-2 штуки", "3-5 штук", "Больше 5");
-			} else if (q.includes("какой") || q.includes("какую") || q.includes("какое")) {
-				chips.push("Подскажи варианты");
-			} else {
-				chips.push("Да", "Нет, этого достаточно");
-			}
+	function parseChipsFromResponse(text) {
+		const match = text.match(/\[CHIPS:\s*(.+?)\]\s*$/);
+		if (match) {
+			const chips = match[1].split("|").map(c => c.trim()).filter(Boolean);
+			const cleanText = text.slice(0, match.index).trimEnd();
+			return { text: cleanText, chips };
 		}
-
-		// Если ИИ рекомендовал товары
-		if (lastAssistantMsg.products?.length > 0) {
-			chips.push("Что ещё понадобится?");
-			chips.push("Покажи аналоги подешевле");
-		}
-
-		// Всегда добавить "завершающий" chip если ещё нет
-		if (!chips.some(c => c.includes("достаточно"))) {
-			chips.push("Спасибо, этого достаточно");
-		}
-
-		return chips.length > 0 ? chips : DEFAULT_FOLLOWUP;
+		return { text, chips: null };
 	}
 
 	let messages = $state([]);
@@ -78,13 +49,11 @@
 
 	let cartIds = $derived(new Set(cart.items.map(i => i.id)));
 	let canSend = $derived(inputText.trim().length > 0 && inputText.length <= 500 && !isLoading);
-	let lastAssistantMsg = $derived(
-		[...messages].reverse().find(m => m.role === "assistant" && !m.streaming)
-	);
+	let aiChips = $state(null); // chips спарсенные из ответа ИИ
 	let currentChips = $derived(
 		messages.length === 0 ? INITIAL_CHIPS :
 		isLoading ? [] :
-		generateChips(lastAssistantMsg)
+		aiChips || DEFAULT_FOLLOWUP
 	);
 
 	onMount(async () => {
@@ -107,6 +76,7 @@
 		const userMsg = text.trim().slice(0, 500);
 		inputText = "";
 		error = null;
+		aiChips = null;
 
 		messages.push({ role: "user", content: userMsg, products: null, streaming: false });
 
@@ -127,9 +97,11 @@
 				messages[aiMsgIndex].content = fullText;
 			},
 			onDone(fullText) {
-				messages[aiMsgIndex].content = fullText;
+				const { text: cleanText, chips } = parseChipsFromResponse(fullText);
+				messages[aiMsgIndex].content = cleanText;
 				messages[aiMsgIndex].streaming = false;
-				messages[aiMsgIndex].products = extractProducts(fullText, catalogItems);
+				messages[aiMsgIndex].products = extractProducts(cleanText, catalogItems);
+				aiChips = chips; // ИИ сам предложил подсказки
 				isLoading = false;
 				abortFn = null;
 			},
