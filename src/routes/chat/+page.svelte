@@ -11,6 +11,7 @@
 	import ChatMessage from "$lib/components/ChatMessage.svelte";
 	import QuickChips from "$lib/components/QuickChips.svelte";
 	import CartPanel from "$lib/components/CartPanel.svelte";
+	import ProductSheet from "$lib/components/ProductSheet.svelte";
 
 	const INITIAL_CHIPS = [
 		"Нужна помощь с электрикой",
@@ -47,6 +48,7 @@
 	let abortFn = $state(null);
 	let chatContainer;
 	let showCart = $state(false);
+	let selectedProduct = $state(null);
 
 	let cartIds = $derived(new Set(cart.items.map(i => i.id)));
 	let canSend = $derived(inputText.trim().length > 0 && inputText.length <= 500 && !isLoading);
@@ -195,6 +197,7 @@
 				onadd={handleAdd}
 				onremove={handleRemove}
 				onaddall={handleAddAll}
+				onselect={(p) => selectedProduct = p}
 			/>
 		{/each}
 
@@ -250,3 +253,10 @@
 
 <!-- Cart panel -->
 <CartPanel open={showCart} onclose={() => showCart = false} />
+
+<!-- Product sheet -->
+<ProductSheet
+	product={selectedProduct}
+	onclose={() => selectedProduct = null}
+	onadd={handleAdd}
+/>

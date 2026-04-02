@@ -13,6 +13,21 @@ const WORKER_URL = "https://zalassist-api.ikokolsk1y.workers.dev";
  */
 export function streamChat({ message, history, catalog, onChunk, onDone, onError }) {
 	const controller = new AbortController();
+	let chunkQueue = [];
+	let flushing = false;
+
+	// Throttled flush — отдаёт накопленные chunks с задержкой для плавности
+	function scheduleFlush() {
+		if (flushing) return;
+		flushing = true;
+		function flush() {
+			if (chunkQueue.length === 0) { flushing = false; return; }
+			const item = chunkQueue.shift();
+			onChunk?.(item.chunk, item.fullText);
+			setTimeout(flush, 35);
+		}
+		flush();
+	}
 
 	(async () => {
 		try {
@@ -54,7 +69,12 @@ export function streamChat({ message, history, catalog, onChunk, onDone, onError
 
 					const data = line.slice(6);
 					if (data === "[DONE]") {
-						onDone?.(fullText);
+						// Дождаться flush всех chunks перед onDone
+						const waitFlush = () => {
+							if (chunkQueue.length > 0) { setTimeout(waitFlush, 50); return; }
+							setTimeout(() => onDone?.(fullText), 300);
+						};
+						waitFlush();
 						return;
 					}
 
@@ -63,7 +83,8 @@ export function streamChat({ message, history, catalog, onChunk, onDone, onError
 						const content = parsed.choices?.[0]?.delta?.content;
 						if (content) {
 							fullText += content;
-							onChunk?.(content, fullText);
+							chunkQueue.push({ chunk: content, fullText });
+							scheduleFlush();
 						}
 					} catch {
 						// Невалидный JSON — пропустить
