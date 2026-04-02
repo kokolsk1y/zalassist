@@ -2,14 +2,28 @@
 	import { Plus, Check } from "lucide-svelte";
 
 	let { product, onselect, onadd, onremove, inCart = false } = $props();
+
+	function handleAdd(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (inCart) {
+			onremove?.(product.id);
+		} else {
+			onadd?.(product);
+		}
+	}
+
+	function handleCardClick() {
+		onselect?.(product);
+	}
 </script>
 
 <div
-	class="card bg-base-100 shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
-	onclick={() => onselect?.(product)}
+	class="card bg-base-100 shadow-sm active:scale-[0.98] transition-transform"
 	role="button"
 	tabindex="0"
-	onkeydown={(e) => e.key === 'Enter' && onselect?.(product)}
+	onclick={handleCardClick}
+	onkeydown={(e) => e.key === 'Enter' && handleCardClick()}
 >
 	<div class="card-body p-4 gap-1">
 		<p class="text-xs text-base-content/50 font-mono">{product.article}</p>
@@ -23,15 +37,17 @@
 			{/if}
 		</div>
 		<div class="card-actions justify-end mt-2">
+			<!-- svelte-ignore a11y_consider_explicit_label -->
 			<button
-				class="btn btn-sm btn-circle {inCart ? 'btn-success' : 'btn-primary'}"
-				onclick={(e) => { e.stopPropagation(); inCart ? onremove?.(product.id) : onadd?.(product); }}
+				class="btn btn-circle {inCart ? 'btn-success' : 'btn-primary'} min-w-[44px] min-h-[44px]"
+				style="touch-action: manipulation"
+				onclick={handleAdd}
 				aria-label={inCart ? "Убрать из списка" : "Добавить в список"}
 			>
 				{#if inCart}
-					<Check size={16} />
+					<Check size={20} />
 				{:else}
-					<Plus size={16} />
+					<Plus size={20} />
 				{/if}
 			</button>
 		</div>
