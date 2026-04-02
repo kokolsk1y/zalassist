@@ -1,4 +1,4 @@
-const WORKER_URL = "https://zalassist-api.ikokolsk1y.workers.dev";
+const WORKER_URL = "https://zalassist-api.pages.dev/chat";
 
 /**
  * Отправить сообщение и стримить ответ от ИИ.
