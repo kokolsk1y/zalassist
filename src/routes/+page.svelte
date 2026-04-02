@@ -65,12 +65,23 @@
 
 	<!-- Поле ввода -->
 	<form onsubmit={handleSearch} class="w-full max-w-md mb-6">
-		<input
-			type="text"
-			bind:value={searchInput}
-			placeholder="Артикул, название или задача..."
-			class="input input-bordered input-lg w-full bg-base-100 shadow-md focus:border-primary focus:shadow-lg transition-all"
-		/>
+		<div class="relative">
+			<input
+				type="text"
+				bind:value={searchInput}
+				placeholder="Артикул, название или задача..."
+				class="input input-bordered input-lg w-full bg-base-100 shadow-md focus:border-primary focus:shadow-lg transition-all pr-14"
+			/>
+			{#if searchInput.trim()}
+				<button
+					type="submit"
+					class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-primary btn-sm btn-circle"
+					aria-label="Искать"
+				>
+					<Search size={18} />
+				</button>
+			{/if}
+		</div>
 	</form>
 
 	<!-- 3 CTA -->
