@@ -1,11 +1,24 @@
 <script>
 	import { base } from "$app/paths";
+	import { goto } from "$app/navigation";
 	import { onMount } from "svelte";
 	import { loadCatalog, getCatalogDate } from "$lib/data/catalog.js";
 	import { Search, MessageSquare, Package } from "lucide-svelte";
 
 	let catalogDate = $state("...");
 	let catalogCount = $state(0);
+	let searchInput = $state("");
+
+	const chips = [
+		{ label: "Автоматы", category: "Автоматы" },
+		{ label: "Кабель", category: "Кабель" },
+		{ label: "Розетки", category: "Розетки" },
+		{ label: "Щиты", category: "Щиты" },
+		{ label: "Освещение", category: "Освещение" },
+		{ label: "УЗО", category: "УЗО" },
+		{ label: "АВДТ", category: "АВДТ" },
+		{ label: "Каналы", category: "Каналы" },
+	];
 
 	onMount(async () => {
 		try {
@@ -17,6 +30,13 @@
 			console.error("Catalog load failed:", e);
 		}
 	});
+
+	function handleSearch(e) {
+		e.preventDefault();
+		if (searchInput.trim()) {
+			goto(`${base}/search/?q=${encodeURIComponent(searchInput.trim())}`);
+		}
+	}
 </script>
 
 <div class="min-h-screen bg-base-200 flex flex-col items-center px-4 pt-12 pb-8">
@@ -32,25 +52,26 @@
 	</h2>
 
 	<!-- Поле ввода -->
-	<div class="w-full max-w-md mb-6">
+	<form onsubmit={handleSearch} class="w-full max-w-md mb-6">
 		<input
 			type="text"
+			bind:value={searchInput}
 			placeholder="Артикул, название или задача..."
 			class="input input-bordered input-lg w-full bg-base-100 shadow-md focus:border-primary focus:shadow-lg transition-all"
 		/>
-	</div>
+	</form>
 
 	<!-- 3 CTA -->
 	<div class="w-full max-w-md flex flex-col gap-3">
-		<a href="{base}/search" class="btn btn-primary btn-lg gap-2 min-h-[52px] text-base">
+		<a href="{base}/search/" class="btn btn-primary btn-lg gap-2 min-h-[52px] text-base">
 			<Search size={20} />
 			Найти товар
 		</a>
-		<a href="{base}/chat" class="btn btn-outline btn-lg gap-2 min-h-[52px] text-base">
+		<a href="{base}/chat/" class="btn btn-outline btn-lg gap-2 min-h-[52px] text-base">
 			<MessageSquare size={20} />
 			Подобрать под задачу
 		</a>
-		<a href="{base}/kits" class="btn btn-outline btn-lg gap-2 min-h-[52px] text-base">
+		<a href="{base}/kits/" class="btn btn-outline btn-lg gap-2 min-h-[52px] text-base">
 			<Package size={20} />
 			Готовые комплекты
 		</a>
@@ -58,10 +79,13 @@
 
 	<!-- Suggestion chips -->
 	<div class="flex flex-wrap gap-2 mt-8 justify-center max-w-md">
-		{#each ["Автоматы", "Кабель", "Розетки", "Щиты", "Освещение", "УЗО", "Инструмент"] as chip}
-			<button class="badge badge-outline badge-lg py-3 px-4 cursor-pointer hover:bg-primary hover:text-primary-content transition-colors">
-				{chip}
-			</button>
+		{#each chips as chip}
+			<a
+				href="{base}/search/?category={encodeURIComponent(chip.category)}"
+				class="badge badge-outline badge-lg py-3 px-4 cursor-pointer hover:bg-primary hover:text-primary-content transition-colors no-underline"
+			>
+				{chip.label}
+			</a>
 		{/each}
 	</div>
 
