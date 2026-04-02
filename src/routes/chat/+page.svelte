@@ -17,11 +17,54 @@
 		"Что выбрать для розеток?"
 	];
 
-	const FOLLOWUP_CHIPS = [
+	const DEFAULT_FOLLOWUP = [
 		"Что ещё понадобится?",
 		"Покажи аналоги",
 		"Спасибо, этого достаточно"
 	];
+
+	/**
+	 * Генерация контекстных chips на основе последнего ответа ИИ.
+	 */
+	function generateChips(lastAssistantMsg) {
+		if (!lastAssistantMsg) return DEFAULT_FOLLOWUP;
+		const text = lastAssistantMsg.content || "";
+
+		// Ищем вопрос ИИ (последнее предложение с ?)
+		const sentences = text.split(/[.!?\n]/).map(s => s.trim()).filter(Boolean);
+		const question = [...sentences].reverse().find(s => text.includes(s + "?"));
+
+		const chips = [];
+
+		if (question) {
+			// ИИ задал вопрос — предложить утвердительный ответ
+			const q = question.toLowerCase();
+			if (q.includes("уточнить") || q.includes("хотите")) {
+				chips.push("Да, хочу уточнить");
+			} else if (q.includes("площадь") || q.includes("комнат") || q.includes("квартир")) {
+				chips.push("Однокомнатная", "Двухкомнатная", "Трёхкомнатная");
+			} else if (q.includes("сколько") || q.includes("количество")) {
+				chips.push("1-2 штуки", "3-5 штук", "Больше 5");
+			} else if (q.includes("какой") || q.includes("какую") || q.includes("какое")) {
+				chips.push("Подскажи варианты");
+			} else {
+				chips.push("Да", "Нет, этого достаточно");
+			}
+		}
+
+		// Если ИИ рекомендовал товары
+		if (lastAssistantMsg.products?.length > 0) {
+			chips.push("Что ещё понадобится?");
+			chips.push("Покажи аналоги подешевле");
+		}
+
+		// Всегда добавить "завершающий" chip если ещё нет
+		if (!chips.some(c => c.includes("достаточно"))) {
+			chips.push("Спасибо, этого достаточно");
+		}
+
+		return chips.length > 0 ? chips : DEFAULT_FOLLOWUP;
+	}
 
 	let messages = $state([]);
 	let inputText = $state("");
@@ -35,10 +78,13 @@
 
 	let cartIds = $derived(new Set(cart.items.map(i => i.id)));
 	let canSend = $derived(inputText.trim().length > 0 && inputText.length <= 500 && !isLoading);
+	let lastAssistantMsg = $derived(
+		[...messages].reverse().find(m => m.role === "assistant" && !m.streaming)
+	);
 	let currentChips = $derived(
 		messages.length === 0 ? INITIAL_CHIPS :
 		isLoading ? [] :
-		FOLLOWUP_CHIPS
+		generateChips(lastAssistantMsg)
 	);
 
 	onMount(async () => {
