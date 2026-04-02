@@ -27,7 +27,8 @@ export default defineConfig({
 			},
 			workbox: {
 				globPatterns: ["client/**/*.{js,css,ico,png,svg,webp,woff,woff2}"],
-				navigateFallback: "/zalassist/",
+				navigateFallback: null,
+				cleanupOutdatedCaches: true,
 				runtimeCaching: [
 					{
 						urlPattern: /\/catalog\.json$/,
