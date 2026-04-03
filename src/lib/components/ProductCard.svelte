@@ -1,27 +1,11 @@
 <script>
-	import { Plus, Check } from "lucide-svelte";
-
 	let { product, onselect, onadd, onremove, inCart = false } = $props();
-
-	function handleToggleCart(event) {
-		event.preventDefault();
-		if (inCart) {
-			if (onremove) onremove(product.id);
-		} else {
-			if (onadd) onadd(product);
-		}
-	}
-
-	function handleCardTap() {
-		if (onselect) onselect(product);
-	}
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="card bg-base-100 shadow-sm" onclick={handleCardTap}>
-	<div class="card-body p-4 gap-1">
+<div class="card bg-base-100 shadow-sm">
+	<div class="card-body p-3 gap-1">
 		<p class="text-xs text-base-content/50 font-mono">{product.article}</p>
-		<h3 class="card-title text-sm leading-tight">{product.name}</h3>
+		<p class="text-sm font-semibold leading-tight">{product.name}</p>
 
 		<div class="flex items-center justify-between mt-2">
 			<div class="flex items-center gap-2">
@@ -33,19 +17,21 @@
 				{/if}
 			</div>
 
-			<!-- Кнопка корзины — использует <a> вместо <button> для надёжности на мобильном -->
-			<a
-				href="#add"
-				role="button"
-				class="btn btn-circle w-12 h-12 no-underline {inCart ? 'btn-success' : 'btn-primary'}"
-				onclick={handleToggleCart}
-			>
-				{#if inCart}
-					<Check size={22} />
-				{:else}
-					<Plus size={22} />
-				{/if}
-			</a>
+			{#if inCart}
+				<div
+					class="w-12 h-12 rounded-full bg-success flex items-center justify-center text-white text-xl cursor-pointer select-none"
+					role="button"
+					tabindex="0"
+					onclick={() => onremove(product.id)}
+				>✓</div>
+			{:else}
+				<div
+					class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-2xl cursor-pointer select-none"
+					role="button"
+					tabindex="0"
+					onclick={() => onadd(product)}
+				>+</div>
+			{/if}
 		</div>
 	</div>
 </div>
