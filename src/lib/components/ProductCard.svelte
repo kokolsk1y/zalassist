@@ -32,7 +32,7 @@
 			{#if inCart}
 				<button type="button" class="btn btn-success btn-circle w-12 h-12 text-xl" onclick={handleRemove}>✓</button>
 			{:else}
-				<button type="button" class="btn btn-primary btn-circle w-12 h-12 text-2xl" onclick={handleAdd}>+</button>
+				<button type="button" class="btn btn-primary btn-circle w-12 h-12 text-2xl" onclick={() => { window.alert('click works!'); handleAdd(); }}>+</button>
 			{/if}
 		</div>
 	</div>
