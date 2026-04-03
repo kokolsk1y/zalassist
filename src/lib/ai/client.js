@@ -54,10 +54,24 @@ export function streamChat({ message, history, catalog, onChunk, onDone, onError
 			const decoder = new TextDecoder();
 			let fullText = "";
 			let buffer = "";
+			let lastChunkTime = Date.now();
 
 			while (true) {
-				const { done, value } = await reader.read();
+				// Таймаут 15 сек без данных — завершаем стрим
+				const timeoutPromise = new Promise((_, reject) =>
+					setTimeout(() => reject(new Error("stream_timeout")), 15000)
+				);
+				let result;
+				try {
+					result = await Promise.race([reader.read(), timeoutPromise]);
+				} catch (e) {
+					if (fullText) { onDone?.(fullText); return; }
+					onError?.("Ответ ИИ прервался. Попробуйте ещё раз.");
+					return;
+				}
+				const { done, value } = result;
 				if (done) break;
+				lastChunkTime = Date.now();
 
 				buffer += decoder.decode(value, { stream: true });
 				const lines = buffer.split("\n");
