@@ -1,3 +1,8 @@
+export const config = {
+	runtime: "edge",
+	maxDuration: 30,
+};
+
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const SYSTEM_PROMPT = `Ты — помощник в торговом зале магазина ЭлектроЦентр. Специализация — электротехнические товары.
@@ -24,85 +29,108 @@ const SYSTEM_PROMPT = `Ты — помощник в торговом зале м
 КАТАЛОГ ТОВАРОВ:
 {catalog}`;
 
-export default async function handler(req, res) {
-	// CORS
-	res.setHeader("Access-Control-Allow-Origin", "*");
-	res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-	res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+const CORS_HEADERS = {
+	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Methods": "POST, OPTIONS",
+	"Access-Control-Allow-Headers": "Content-Type",
+};
 
-	if (req.method === "OPTIONS") {
-		return res.status(204).end();
-	}
-
-	if (req.method !== "POST") {
-		return res.status(405).json({ error: "Method not allowed" });
-	}
-
-	const { message, history = [], catalog } = req.body || {};
-
-	// Validate
-	if (!message || typeof message !== "string" || message.trim().length === 0) {
-		return res.status(400).json({ error: "Сообщение обязательно" });
-	}
-	if (message.length > 500) {
-		return res.status(400).json({ error: "Сообщение не должно превышать 500 символов" });
-	}
-	if (!catalog || typeof catalog !== "string") {
-		return res.status(400).json({ error: "Каталог обязателен" });
-	}
-
+function buildMessages(message, history, catalog) {
 	const trimmedHistory = Array.isArray(history) ? history.slice(-20) : [];
-
 	const systemMsg = {
 		role: "system",
-		content: [{
-			type: "text",
-			text: SYSTEM_PROMPT.replace("{catalog}", catalog),
-			cache_control: { type: "ephemeral" }
-		}]
+		content: [{ type: "text", text: SYSTEM_PROMPT.replace("{catalog}", catalog), cache_control: { type: "ephemeral" } }]
 	};
+	return [systemMsg, ...trimmedHistory, { role: "user", content: message.trim() }];
+}
 
-	const messages = [systemMsg, ...trimmedHistory, { role: "user", content: message.trim() }];
+export default async function handler(req) {
+	if (req.method === "OPTIONS") {
+		return new Response(null, { status: 204, headers: CORS_HEADERS });
+	}
+	if (req.method !== "POST") {
+		return Response.json({ error: "Method not allowed" }, { status: 405, headers: CORS_HEADERS });
+	}
+
+	let body;
+	try { body = await req.json(); } catch {
+		return Response.json({ error: "Invalid JSON" }, { status: 400, headers: CORS_HEADERS });
+	}
+
+	const { message, history = [], catalog, stream: wantStream = true } = body;
+
+	if (!message || typeof message !== "string" || !message.trim()) {
+		return Response.json({ error: "Сообщение обязательно" }, { status: 400, headers: CORS_HEADERS });
+	}
+	if (message.length > 500) {
+		return Response.json({ error: "Макс 500 символов" }, { status: 400, headers: CORS_HEADERS });
+	}
+	if (!catalog || typeof catalog !== "string") {
+		return Response.json({ error: "Каталог обязателен" }, { status: 400, headers: CORS_HEADERS });
+	}
+
+	const messages = buildMessages(message, history, catalog);
 
 	try {
+		// Если клиент просит без стриминга — возвращаем полный ответ JSON
+		if (!wantStream) {
+			const response = await fetch(OPENROUTER_URL, {
+				method: "POST",
+				headers: {
+					"Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+					"Content-Type": "application/json",
+					"HTTP-Referer": "https://kokolsk1y.github.io/zalassist/",
+					"X-Title": "ZalAssist"
+				},
+				body: JSON.stringify({ model: "anthropic/claude-3.5-haiku", messages, stream: false, max_tokens: 1024, temperature: 0.3 })
+			});
+			if (!response.ok) {
+				return Response.json({ error: "ИИ-сервис временно недоступен" }, { status: 502, headers: CORS_HEADERS });
+			}
+			const data = await response.json();
+			const text = data.choices?.[0]?.message?.content || "";
+			return Response.json({ text }, { headers: CORS_HEADERS });
+		}
+
+		// Стриминг — проксируем SSE
 		const response = await fetch(OPENROUTER_URL, {
 			method: "POST",
 			headers: {
 				"Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
 				"Content-Type": "application/json",
+				"Accept-Encoding": "identity",
 				"HTTP-Referer": "https://kokolsk1y.github.io/zalassist/",
 				"X-Title": "ZalAssist"
 			},
-			body: JSON.stringify({
-				model: "anthropic/claude-3.5-haiku",
-				messages,
-				stream: true,
-				max_tokens: 1024,
-				temperature: 0.3
-			})
+			body: JSON.stringify({ model: "anthropic/claude-3.5-haiku", messages, stream: true, max_tokens: 1024, temperature: 0.3 })
 		});
 
 		if (!response.ok) {
-			const text = await response.text().catch(() => "");
-			return res.status(502).json({ error: "ИИ-сервис временно недоступен", detail: text });
+			return Response.json({ error: "ИИ-сервис временно недоступен" }, { status: 502, headers: CORS_HEADERS });
 		}
 
-		// Stream SSE
-		res.setHeader("Content-Type", "text/event-stream");
-		res.setHeader("Cache-Control", "no-cache");
-		res.setHeader("Connection", "keep-alive");
-
+		// Перечитываем через ReadableStream для чистого проксирования
 		const reader = response.body.getReader();
-		const decoder = new TextDecoder();
+		const stream = new ReadableStream({
+			async pull(controller) {
+				try {
+					const { done, value } = await reader.read();
+					if (done) { controller.close(); return; }
+					controller.enqueue(value);
+				} catch { controller.close(); }
+			},
+			cancel() { reader.cancel(); }
+		});
 
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			res.write(decoder.decode(value, { stream: true }));
-		}
-
-		res.end();
+		return new Response(stream, {
+			headers: {
+				"Content-Type": "text/event-stream; charset=utf-8",
+				"Cache-Control": "no-cache, no-transform",
+				"X-Accel-Buffering": "no",
+				...CORS_HEADERS,
+			},
+		});
 	} catch (err) {
-		return res.status(502).json({ error: "Не удалось подключиться к ИИ-сервису" });
+		return Response.json({ error: "Не удалось подключиться к ИИ-сервису" }, { status: 502, headers: CORS_HEADERS });
 	}
 }

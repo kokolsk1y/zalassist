@@ -1,5 +1,6 @@
 <script>
 	import { base } from "$app/paths";
+	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
 	import { ArrowLeft, Send, MessageSquare } from "lucide-svelte";
 	import { loadCatalog } from "$lib/data/catalog.js";
@@ -24,10 +25,6 @@
 		"Расскажи подробнее"
 	];
 
-	/**
-	 * Извлечь chips из ответа ИИ: [CHIPS: вариант1 | вариант2 | вариант3]
-	 * Возвращает { text, chips } — очищенный текст и массив chips.
-	 */
 	function parseChipsFromResponse(text) {
 		const match = text.match(/\[CHIPS:\s*(.+?)\]\s*$/);
 		if (match) {
@@ -38,6 +35,8 @@
 		return { text, chips: null };
 	}
 
+	const cart = useCart();
+
 	let messages = $state([]);
 	let inputText = $state("");
 	let isLoading = $state(false);
@@ -47,16 +46,16 @@
 	let abortFn = $state(null);
 	let chatContainer;
 	let selectedProduct = $state(null);
-	const cart = useCart();
+	let aiChips = $state(null);
 
-	let cartIds = $derived(new Set(cart.items.map(i => i.id)));
-	let canSend = $derived(inputText.trim().length > 0 && inputText.length <= 500 && !isLoading);
-	let aiChips = $state(null); // chips спарсенные из ответа ИИ
-	let currentChips = $derived(
-		messages.length === 0 ? INITIAL_CHIPS :
-		isLoading ? [] :
-		aiChips || DEFAULT_FOLLOWUP
-	);
+	// Вычисляемые значения через функции вместо $derived
+	function getCartIds() { return new Set(cart.items.map(i => i.id)); }
+	function getCanSend() { return inputText.trim().length > 0 && inputText.length <= 500 && !isLoading; }
+	function getCurrentChips() {
+		if (messages.length === 0) return INITIAL_CHIPS;
+		if (isLoading) return [];
+		return aiChips || DEFAULT_FOLLOWUP;
+	}
 
 	onMount(async () => {
 		try {
@@ -65,9 +64,7 @@
 			catalogCompact = formatCatalogForAI(catalog.items);
 		} catch (e) {
 			error = "Не удалось загрузить каталог";
-			console.error(e);
 		}
-		// Восстановить чат из sessionStorage
 		try {
 			const saved = sessionStorage.getItem("zalassist-chat");
 			if (saved) {
@@ -79,19 +76,22 @@
 		} catch {}
 	});
 
-	onDestroy(() => {
-		abortFn?.();
-	});
+	onDestroy(() => { abortFn?.(); });
 
-	// Сохранять чат в sessionStorage при изменении
-	$effect(() => {
-		if (messages.length > 0 && !isLoading) {
-			try {
-				const toSave = messages.map(m => ({ role: m.role, content: m.content, products: m.products }));
-				sessionStorage.setItem("zalassist-chat", JSON.stringify(toSave));
-			} catch {}
+	function saveChat() {
+		try {
+			const toSave = messages.map(m => ({ role: m.role, content: m.content, products: m.products }));
+			sessionStorage.setItem("zalassist-chat", JSON.stringify(toSave));
+		} catch {}
+	}
+
+	function scrollToBottom() {
+		if (chatContainer) {
+			requestAnimationFrame(() => {
+				chatContainer.scrollTop = chatContainer.scrollHeight;
+			});
 		}
-	});
+	}
 
 	function sendMessage(text) {
 		if (!text?.trim() || isLoading) return;
@@ -100,11 +100,12 @@
 		error = null;
 		aiChips = null;
 
-		messages.push({ role: "user", content: userMsg, products: null, streaming: false });
+		messages = [...messages, { role: "user", content: userMsg, products: null, streaming: false }];
 
 		const aiMsgIndex = messages.length;
-		messages.push({ role: "assistant", content: "", products: null, streaming: true });
+		messages = [...messages, { role: "assistant", content: "", products: null, streaming: true }];
 		isLoading = true;
+		scrollToBottom();
 
 		const history = messages.slice(0, -2)
 			.filter(m => m.role === "user" || m.role === "assistant")
@@ -116,43 +117,42 @@
 			history,
 			catalog: catalogCompact,
 			onChunk(chunk, fullText) {
-				messages[aiMsgIndex].content = fullText;
+				messages[aiMsgIndex] = { ...messages[aiMsgIndex], content: fullText };
+				messages = [...messages]; // force reactivity
+				scrollToBottom();
 			},
 			onDone(fullText) {
 				const { text: cleanText, chips } = parseChipsFromResponse(fullText);
-				messages[aiMsgIndex].content = cleanText;
-				messages[aiMsgIndex].streaming = false;
-				messages[aiMsgIndex].products = extractProducts(cleanText, catalogItems);
-				aiChips = chips; // ИИ сам предложил подсказки
+				messages[aiMsgIndex] = {
+					...messages[aiMsgIndex],
+					content: cleanText,
+					streaming: false,
+					products: extractProducts(cleanText, catalogItems)
+				};
+				messages = [...messages];
+				aiChips = chips;
 				isLoading = false;
 				abortFn = null;
+				saveChat();
+				scrollToBottom();
 			},
 			onError(errMsg) {
-				messages[aiMsgIndex].content = errMsg;
-				messages[aiMsgIndex].streaming = false;
+				messages[aiMsgIndex] = { ...messages[aiMsgIndex], content: errMsg, streaming: false };
+				messages = [...messages];
 				isLoading = false;
 				error = errMsg;
 				abortFn = null;
+				scrollToBottom();
 			}
 		});
 	}
-
-	// Auto-scroll
-	$effect(() => {
-		const _ = messages.length > 0 && messages[messages.length - 1]?.content;
-		if (chatContainer) {
-			requestAnimationFrame(() => {
-				chatContainer.scrollTop = chatContainer.scrollHeight;
-			});
-		}
-	});
 
 	function handleAdd(product) { cart.add(product); toast.show("✓ Добавлено в список"); }
 	function handleRemove(id) { cart.remove(id); toast.show("Убрано из списка"); }
 	function handleAddAll(products) { products.forEach(p => cart.add(p)); toast.show(`✓ Добавлено ${products.length} товаров`); }
 	function handleChipSelect(chipText) { sendMessage(chipText); }
 	function handleKeydown(e) {
-		if (e.key === "Enter" && !e.shiftKey && canSend) {
+		if (e.key === "Enter" && !e.shiftKey && getCanSend()) {
 			e.preventDefault();
 			sendMessage(inputText);
 		}
@@ -160,7 +160,6 @@
 </script>
 
 <div class="flex flex-col h-[100dvh] bg-base-200">
-	<!-- Header -->
 	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2">
 		<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-sm btn-circle" aria-label="Назад">
 			<ArrowLeft size={20} />
@@ -168,7 +167,6 @@
 		<span class="text-lg font-bold ml-2 flex-1">Подбор под задачу</span>
 	</div>
 
-	<!-- Messages area -->
 	<div class="flex-1 overflow-y-auto p-4 space-y-2" bind:this={chatContainer}>
 		{#if messages.length === 0}
 			<div class="text-center text-base-content/50 mt-8">
@@ -182,7 +180,7 @@
 		{#each messages as message, i (i)}
 			<ChatMessage
 				{message}
-				{cartIds}
+				cartIds={getCartIds()}
 				onadd={handleAdd}
 				onremove={handleRemove}
 				onaddall={handleAddAll}
@@ -191,27 +189,22 @@
 		{/each}
 
 		{#if error}
-			<div class="alert alert-error text-sm">
-				{error}
-			</div>
+			<div class="alert alert-error text-sm">{error}</div>
 		{/if}
 	</div>
 
-	<!-- Quick chips -->
-	{#if currentChips.length > 0}
+	{#if getCurrentChips().length > 0}
 		<QuickChips
-			chips={currentChips}
+			chips={getCurrentChips()}
 			onselect={handleChipSelect}
 			disabled={isLoading}
 		/>
 	{/if}
 
-	<!-- Disclaimer -->
 	<p class="text-xs text-base-content/60 text-center px-4">
 		Наличие и цены уточняйте у консультанта
 	</p>
 
-	<!-- Input area -->
 	<div class="p-3 bg-base-100 border-t border-base-300 flex gap-2 items-end safe-bottom">
 		<textarea
 			class="textarea textarea-bordered flex-1 min-h-[44px] max-h-[120px] resize-none text-base"
@@ -225,14 +218,13 @@
 		<button
 			class="btn btn-primary btn-circle"
 			onclick={() => sendMessage(inputText)}
-			disabled={!canSend}
+			disabled={!getCanSend()}
 			aria-label="Отправить"
 		>
 			<Send size={20} />
 		</button>
 	</div>
 
-	<!-- Character counter -->
 	{#if inputText.length > 400}
 		<p class="text-xs text-center pb-1 {inputText.length > 500 ? 'text-error' : 'text-base-content/60'}">
 			{inputText.length}/500
@@ -240,7 +232,6 @@
 	{/if}
 </div>
 
-<!-- Product sheet -->
 <ProductSheet
 	product={selectedProduct}
 	onclose={() => selectedProduct = null}
