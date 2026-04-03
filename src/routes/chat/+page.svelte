@@ -205,36 +205,9 @@
 		/>
 	{/if}
 
-	<div class="text-center p-2 space-x-2">
-		<button class="btn btn-xs btn-error" onclick={async () => {
-			error = "Запрос...";
-			try {
-				const r = await fetch("https://api.kokolsk1y.ru/api/chat", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ message: "привет", catalog: catalogCompact, stream: false }),
-					cache: "no-store",
-					mode: "cors"
-				});
-				const d = await r.json();
-				error = "FETCH OK: " + (d.text || d.error || "???").slice(0, 60);
-			} catch(e) {
-				error = "FETCH FAIL: " + e.name + " " + e.message;
-			}
-		}}>Fetch</button>
-		<button class="btn btn-xs btn-warning" onclick={() => {
-			error = "XHR запрос...";
-			const xhr = new XMLHttpRequest();
-			xhr.open("POST", "https://api.kokolsk1y.ru/api/chat");
-			xhr.setRequestHeader("Content-Type", "application/json");
-			xhr.onload = () => { error = "XHR OK: " + xhr.responseText.slice(0, 60); };
-			xhr.onerror = () => { error = "XHR FAIL: status=" + xhr.status; };
-			xhr.ontimeout = () => { error = "XHR TIMEOUT"; };
-			xhr.timeout = 20000;
-			xhr.send(JSON.stringify({ message: "привет", catalog: catalogCompact, stream: false }));
-		}}>XHR</button>
-		<span class="text-xs">v17 · cat={catalogCompact.length}</span>
-	</div>
+	<p class="text-xs text-base-content/60 text-center px-4">
+		Наличие и цены уточняйте у консультанта
+	</p>
 
 	<div class="p-3 bg-base-100 border-t border-base-300 flex gap-2 items-end safe-bottom">
 		<textarea
