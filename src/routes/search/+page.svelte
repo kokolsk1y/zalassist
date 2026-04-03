@@ -6,7 +6,7 @@
 	import { Search, ArrowLeft, ShoppingCart, MessageSquare } from "lucide-svelte";
 	import { loadCatalog } from "$lib/data/catalog.js";
 	import { createSearchEngine } from "$lib/search/engine.js";
-	import { cart } from "$lib/stores/cart.svelte.js";
+	import { getCartItems, getCartCount, addToCart as cartAdd, removeFromCart as cartRemove } from "$lib/stores/cart.svelte.js";
 	import { toast } from "$lib/stores/toast.svelte.js";
 	import ProductCard from "$lib/components/ProductCard.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
@@ -94,17 +94,13 @@
 	}
 
 	function addToCart(product) {
-		cart.add(product);
+		cartAdd(product);
 		toast.show("✓ Добавлено в список");
 	}
 
 	function removeFromCart(id) {
-		cart.remove(id);
+		cartRemove(id);
 		toast.show("Убрано из списка");
-	}
-
-	function isInCart(productId) {
-		return cart.items.some(i => i.id === productId);
 	}
 </script>
 
@@ -131,14 +127,14 @@
 					<Search size={16} />
 				</button>
 			</div>
-			{#if cart.count > 0}
+			{#if getCartCount() > 0}
 				<button
 					class="btn btn-primary btn-sm btn-circle relative"
 					onclick={() => showCartPanel = true}
 					aria-label="Список товаров"
 				>
 					<ShoppingCart size={16} />
-					<span class="absolute -top-1 -right-1 badge badge-secondary badge-xs">{cart.count}</span>
+					<span class="absolute -top-1 -right-1 badge badge-secondary badge-xs">{getCartCount()}</span>
 				</button>
 			{/if}
 		</div>
@@ -189,7 +185,7 @@
 								onselect={(p) => selectedProduct = p}
 								onadd={addToCart}
 								onremove={removeFromCart}
-								inCart={isInCart(product.id)}
+								inCart={getCartItems().some(i => i.id === product.id)}
 							/>
 						{/each}
 					</div>
@@ -222,7 +218,7 @@
 						onselect={(p) => selectedProduct = p}
 						onadd={addToCart}
 						onremove={removeFromCart}
-						inCart={isInCart(product.id)}
+						inCart={getCartItems().some(i => i.id === product.id)}
 					/>
 				{/each}
 			</div>
