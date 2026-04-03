@@ -2,50 +2,50 @@
 	import { Plus, Check } from "lucide-svelte";
 
 	let { product, onselect, onadd, onremove, inCart = false } = $props();
+
+	function handleToggleCart(event) {
+		event.preventDefault();
+		if (inCart) {
+			if (onremove) onremove(product.id);
+		} else {
+			if (onadd) onadd(product);
+		}
+	}
+
+	function handleCardTap() {
+		if (onselect) onselect(product);
+	}
 </script>
 
-<div class="card bg-base-100 shadow-sm transition-transform">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="card bg-base-100 shadow-sm" onclick={handleCardTap}>
 	<div class="card-body p-4 gap-1">
-		<!-- Кликабельная область для открытия деталей -->
-		{#if onselect}
-			<div
-				class="cursor-pointer active:opacity-70"
-				role="button"
-				tabindex="0"
-				onclick={() => onselect(product)}
-				onkeydown={(e) => e.key === 'Enter' && onselect(product)}
-			>
-				<p class="text-xs text-base-content/50 font-mono">{product.article}</p>
-				<h3 class="card-title text-sm leading-tight">{product.name}</h3>
+		<p class="text-xs text-base-content/50 font-mono">{product.article}</p>
+		<h3 class="card-title text-sm leading-tight">{product.name}</h3>
+
+		<div class="flex items-center justify-between mt-2">
+			<div class="flex items-center gap-2">
+				<span class="badge badge-sm badge-ghost">{product.brand}</span>
+				{#if product.inStock}
+					<span class="badge badge-sm badge-success">В наличии</span>
+				{:else}
+					<span class="badge badge-sm badge-ghost">Под заказ</span>
+				{/if}
 			</div>
-		{:else}
-			<p class="text-xs text-base-content/50 font-mono">{product.article}</p>
-			<h3 class="card-title text-sm leading-tight">{product.name}</h3>
-		{/if}
 
-		<div class="flex items-center gap-2 mt-1">
-			<span class="badge badge-sm badge-ghost">{product.brand}</span>
-			{#if product.inStock}
-				<span class="badge badge-sm badge-success gap-1">В наличии</span>
-			{:else}
-				<span class="badge badge-sm badge-ghost">Под заказ</span>
-			{/if}
-		</div>
-
-		<!-- Кнопка добавления — отдельная от карточки -->
-		<div class="card-actions justify-end mt-2">
-			<button
-				class="btn btn-circle min-w-[48px] min-h-[48px] {inCart ? 'btn-success' : 'btn-primary'}"
-				style="touch-action: manipulation"
-				onclick={() => inCart ? onremove?.(product.id) : onadd?.(product)}
-				aria-label={inCart ? "Убрать из списка" : "Добавить в список"}
+			<!-- Кнопка корзины — использует <a> вместо <button> для надёжности на мобильном -->
+			<a
+				href="#add"
+				role="button"
+				class="btn btn-circle w-12 h-12 no-underline {inCart ? 'btn-success' : 'btn-primary'}"
+				onclick={handleToggleCart}
 			>
 				{#if inCart}
 					<Check size={22} />
 				{:else}
 					<Plus size={22} />
 				{/if}
-			</button>
+			</a>
 		</div>
 	</div>
 </div>
