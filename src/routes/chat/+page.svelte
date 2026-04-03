@@ -112,28 +112,30 @@
 			.slice(-20);
 
 		try {
+			function fetchWithTimeout(body, ms = 12000) {
+				return Promise.race([
+					fetch("https://api.kokolsk1y.ru/api/chat", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(body)
+					}).then(async r => {
+						if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Код " + r.status);
+						return r.json();
+					}),
+					new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
+				]);
+			}
+
 			let data;
+			const body = { message: userMsg, history, catalog: catalogCompact, stream: false };
 			for (let attempt = 0; attempt < 3; attempt++) {
 				try {
 					if (attempt > 0) {
-						await new Promise(r => setTimeout(r, 1000));
+						await new Promise(r => setTimeout(r, 500));
 						messages[aiMsgIndex] = { ...messages[aiMsgIndex], content: "⏳ Попытка " + (attempt + 1) + "..." };
 						messages = [...messages];
 					}
-					const ctrl = new AbortController();
-					const timer = setTimeout(() => ctrl.abort(), 15000);
-					const r = await fetch("https://api.kokolsk1y.ru/api/chat", {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ message: userMsg, history, catalog: catalogCompact, stream: false }),
-						signal: ctrl.signal
-					});
-					clearTimeout(timer);
-					if (!r.ok) {
-						const err = await r.json().catch(() => ({}));
-						throw new Error(err.error || "Код " + r.status);
-					}
-					data = await r.json();
+					data = await fetchWithTimeout(body);
 					break;
 				} catch (e) {
 					if (attempt === 2) throw e;
