@@ -1,0 +1,11 @@
+{
+  "project": "ZalAssist",
+  "mode": "interactive",
+  "granularity": "fine",
+  "parallelization": true,
+  "git_tracking": "phase-end",
+  "research_agents": true,
+  "plan_checker": true,
+  "verifier": true,
+  "model_profile": "balanced"
+}
