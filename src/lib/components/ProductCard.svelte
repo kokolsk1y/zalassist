@@ -2,8 +2,14 @@
 	let { product, onselect, onadd, onremove, inCart = false } = $props();
 
 	function handleAdd() {
+		window.alert('onadd exists: ' + !!onadd + ', product.id: ' + product?.id);
 		if (onadd) {
-			onadd(product);
+			try {
+				onadd(product);
+				window.alert('added ok, cart should update');
+			} catch(e) {
+				window.alert('ERROR: ' + e.message);
+			}
 		}
 	}
 
