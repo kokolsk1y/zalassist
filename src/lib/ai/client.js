@@ -1,4 +1,4 @@
-const WORKER_URL = "https://vercel-api-xi-rose.vercel.app/api/chat";
+const WORKER_URL = "https://api.kokolsk1y.ru/api/chat";
 
 /**
  * Отправить сообщение и стримить ответ от ИИ.
