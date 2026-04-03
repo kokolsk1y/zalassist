@@ -86,29 +86,29 @@
 
 	<!-- 3 CTA -->
 	<div class="w-full max-w-md flex flex-col gap-3">
-		<a href="{base}/search/" class="btn btn-primary btn-lg gap-2 min-h-[52px] text-base">
+		<button onclick={() => goto(`${base}/search/`)} class="btn btn-primary btn-lg gap-2 min-h-[52px] text-base">
 			<Search size={20} />
 			Найти товар
-		</a>
-		<a href="{base}/chat/" class="btn btn-outline btn-lg gap-2 min-h-[52px] text-base">
+		</button>
+		<button onclick={() => goto(`${base}/chat/`)} class="btn btn-outline btn-lg gap-2 min-h-[52px] text-base">
 			<MessageSquare size={20} />
 			Подобрать под задачу
-		</a>
-		<a href="{base}/kits/" class="btn btn-outline btn-lg gap-2 min-h-[52px] text-base">
+		</button>
+		<button onclick={() => goto(`${base}/kits/`)} class="btn btn-outline btn-lg gap-2 min-h-[52px] text-base">
 			<Package size={20} />
 			Готовые комплекты
-		</a>
+		</button>
 	</div>
 
 	<!-- Suggestion chips -->
 	<div class="flex flex-wrap gap-2 mt-8 justify-center max-w-md">
 		{#each chips as chip}
-			<a
-				href="{base}/search/?category={encodeURIComponent(chip.category)}"
-				class="badge badge-outline badge-lg py-3 px-4 cursor-pointer hover:bg-primary hover:text-primary-content transition-colors no-underline"
+			<button
+				onclick={() => goto(`${base}/search/?category=${encodeURIComponent(chip.category)}`)}
+				class="badge badge-outline badge-lg py-3 px-4 cursor-pointer hover:bg-primary hover:text-primary-content transition-colors"
 			>
 				{chip.label}
-			</a>
+			</button>
 		{/each}
 	</div>
 

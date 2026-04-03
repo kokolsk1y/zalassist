@@ -1,16 +1,15 @@
 <script>
 	import { base } from "$app/paths";
 	import { onMount, onDestroy } from "svelte";
-	import { ArrowLeft, Send, MessageSquare, ShoppingCart } from "lucide-svelte";
+	import { ArrowLeft, Send, MessageSquare } from "lucide-svelte";
 	import { loadCatalog } from "$lib/data/catalog.js";
 	import { formatCatalogForAI } from "$lib/ai/prompt.js";
 	import { streamChat } from "$lib/ai/client.js";
 	import { extractProducts } from "$lib/ai/parse.js";
-	import { getCartItems, getCartCount, addToCart as cartAdd, removeFromCart as cartRemove } from "$lib/stores/cart.svelte.js";
+	import { useCart } from "$lib/stores/cart.svelte.js";
 	import { toast } from "$lib/stores/toast.svelte.js";
 	import ChatMessage from "$lib/components/ChatMessage.svelte";
 	import QuickChips from "$lib/components/QuickChips.svelte";
-	import CartPanel from "$lib/components/CartPanel.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
 
 	const INITIAL_CHIPS = [
@@ -47,10 +46,10 @@
 	let catalogCompact = $state("");
 	let abortFn = $state(null);
 	let chatContainer;
-	let showCart = $state(false);
 	let selectedProduct = $state(null);
+	const cart = useCart();
 
-	let cartIds = $derived(new Set(getCartItems().map(i => i.id)));
+	let cartIds = $derived(new Set(cart.items.map(i => i.id)));
 	let canSend = $derived(inputText.trim().length > 0 && inputText.length <= 500 && !isLoading);
 	let aiChips = $state(null); // chips спарсенные из ответа ИИ
 	let currentChips = $derived(
@@ -148,9 +147,9 @@
 		}
 	});
 
-	function handleAdd(product) { cartAdd(product); toast.show("✓ Добавлено в список"); }
-	function handleRemove(id) { cartRemove(id); toast.show("Убрано из списка"); }
-	function handleAddAll(products) { products.forEach(p => cartAdd(p)); toast.show(`✓ Добавлено ${products.length} товаров`); }
+	function handleAdd(product) { cart.add(product); toast.show("✓ Добавлено в список"); }
+	function handleRemove(id) { cart.remove(id); toast.show("Убрано из списка"); }
+	function handleAddAll(products) { products.forEach(p => cart.add(p)); toast.show(`✓ Добавлено ${products.length} товаров`); }
 	function handleChipSelect(chipText) { sendMessage(chipText); }
 	function handleKeydown(e) {
 		if (e.key === "Enter" && !e.shiftKey && canSend) {
@@ -163,20 +162,10 @@
 <div class="flex flex-col h-[100dvh] bg-base-200">
 	<!-- Header -->
 	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2">
-		<a href="{base}/" class="btn btn-ghost btn-sm btn-circle" aria-label="Назад" data-sveltekit-reload>
+		<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-sm btn-circle" aria-label="Назад">
 			<ArrowLeft size={20} />
-		</a>
+		</button>
 		<span class="text-lg font-bold ml-2 flex-1">Подбор под задачу</span>
-		{#if getCartCount() > 0}
-			<button
-				class="btn btn-primary btn-sm btn-circle relative"
-				onclick={() => showCart = true}
-				aria-label="Список товаров"
-			>
-				<ShoppingCart size={16} />
-				<span class="absolute -top-1 -right-1 badge badge-secondary badge-xs">{getCartCount()}</span>
-			</button>
-		{/if}
 	</div>
 
 	<!-- Messages area -->
@@ -250,9 +239,6 @@
 		</p>
 	{/if}
 </div>
-
-<!-- Cart panel -->
-<CartPanel open={showCart} onclose={() => showCart = false} />
 
 <!-- Product sheet -->
 <ProductSheet

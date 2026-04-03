@@ -29,6 +29,8 @@ export default defineConfig({
 				globPatterns: ["client/**/*.{js,css,ico,png,svg,webp,woff,woff2}"],
 				navigateFallback: null,
 				cleanupOutdatedCaches: true,
+				skipWaiting: true,
+				clientsClaim: true,
 				runtimeCaching: [
 					{
 						urlPattern: /\/catalog\.json$/,
