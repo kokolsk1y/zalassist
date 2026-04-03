@@ -112,19 +112,29 @@
 			.slice(-20);
 
 		try {
-			// Точно такой же fetch как на тест-странице
-			const r = await fetch("https://api.kokolsk1y.ru/api/chat", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ message: userMsg, history, catalog: catalogCompact, stream: false })
-			});
-
-			if (!r.ok) {
-				const err = await r.json().catch(() => ({}));
-				throw new Error(err.error || "Код " + r.status);
+			// Fetch с автоповтором (до 2 попыток)
+			let data;
+			for (let attempt = 0; attempt < 2; attempt++) {
+				try {
+					if (attempt > 0) await new Promise(r => setTimeout(r, 1000));
+					const r = await fetch("https://api.kokolsk1y.ru/api/chat", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ message: userMsg, history, catalog: catalogCompact, stream: false })
+					});
+					if (!r.ok) {
+						const err = await r.json().catch(() => ({}));
+						throw new Error(err.error || "Код " + r.status);
+					}
+					data = await r.json();
+					break; // успех
+				} catch (e) {
+					if (attempt === 1) throw e; // вторая попытка тоже упала
+					messages[aiMsgIndex] = { ...messages[aiMsgIndex], content: "⏳ Повторяю запрос..." };
+					messages = [...messages];
+				}
 			}
 
-			const data = await r.json();
 			const fullText = data.text || "Пустой ответ";
 			const { text: cleanText, chips } = parseChipsFromResponse(fullText);
 
