@@ -5,10 +5,10 @@
 	import { ArrowLeft, Send, MessageSquare } from "lucide-svelte";
 	import { loadCatalog } from "$lib/data/catalog.js";
 	import { formatCatalogForAI } from "$lib/ai/prompt.js";
-	import { streamChat } from "$lib/ai/client.js";
+	// import { streamChat } from "$lib/ai/client.js";
 	import { extractProducts } from "$lib/ai/parse.js";
-	import { useCart } from "$lib/stores/cart.svelte.js";
-	import { toast } from "$lib/stores/toast.svelte.js";
+	// import { useCart } from "$lib/stores/cart.svelte.js";
+	// import { toast } from "$lib/stores/toast.svelte.js";
 	import ChatMessage from "$lib/components/ChatMessage.svelte";
 	import QuickChips from "$lib/components/QuickChips.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
@@ -35,7 +35,7 @@
 		return { text, chips: null };
 	}
 
-	const cart = useCart();
+	const cart = { items: [], count: 0, add() {}, remove() {}, updateQty() {}, clear() {}, formatText() { return ""; } };
 
 	let messages = $state([]);
 	let inputText = $state("");
@@ -93,7 +93,7 @@
 		}
 	}
 
-	function sendMessage(text) {
+	async function sendMessage(text) {
 		if (!text?.trim() || isLoading) return;
 		const userMsg = text.trim().slice(0, 500);
 		inputText = "";
@@ -101,9 +101,8 @@
 		aiChips = null;
 
 		messages = [...messages, { role: "user", content: userMsg, products: null, streaming: false }];
-
 		const aiMsgIndex = messages.length;
-		messages = [...messages, { role: "assistant", content: "", products: null, streaming: true }];
+		messages = [...messages, { role: "assistant", content: "⏳ Думаю...", products: null, streaming: true }];
 		isLoading = true;
 		scrollToBottom();
 
@@ -112,44 +111,49 @@
 			.map(m => ({ role: m.role, content: m.content }))
 			.slice(-20);
 
-		abortFn = streamChat({
-			message: userMsg,
-			history,
-			catalog: catalogCompact,
-			onChunk(chunk, fullText) {
-				messages[aiMsgIndex] = { ...messages[aiMsgIndex], content: fullText };
-				messages = [...messages]; // force reactivity
-				scrollToBottom();
-			},
-			onDone(fullText) {
-				const { text: cleanText, chips } = parseChipsFromResponse(fullText);
-				messages[aiMsgIndex] = {
-					...messages[aiMsgIndex],
-					content: cleanText,
-					streaming: false,
-					products: extractProducts(cleanText, catalogItems)
-				};
-				messages = [...messages];
-				aiChips = chips;
-				isLoading = false;
-				abortFn = null;
-				saveChat();
-				scrollToBottom();
-			},
-			onError(errMsg) {
-				messages[aiMsgIndex] = { ...messages[aiMsgIndex], content: errMsg, streaming: false };
-				messages = [...messages];
-				isLoading = false;
-				error = errMsg;
-				abortFn = null;
-				scrollToBottom();
+		try {
+			// Точно такой же fetch как на тест-странице
+			const r = await fetch("https://api.kokolsk1y.ru/api/chat", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ message: userMsg, history, catalog: catalogCompact, stream: false })
+			});
+
+			if (!r.ok) {
+				const err = await r.json().catch(() => ({}));
+				throw new Error(err.error || "Код " + r.status);
 			}
-		});
+
+			const data = await r.json();
+			const fullText = data.text || "Пустой ответ";
+			const { text: cleanText, chips } = parseChipsFromResponse(fullText);
+
+			messages[aiMsgIndex] = {
+				...messages[aiMsgIndex],
+				content: cleanText,
+				streaming: false,
+				products: extractProducts(cleanText, catalogItems)
+			};
+			messages = [...messages];
+			aiChips = chips;
+			saveChat();
+		} catch (err) {
+			messages[aiMsgIndex] = {
+				...messages[aiMsgIndex],
+				content: "Ошибка: " + err.name + " — " + err.message,
+				streaming: false
+			};
+			messages = [...messages];
+			error = err.message;
+		}
+
+		isLoading = false;
+		scrollToBottom();
 	}
 
-	function handleAdd(product) { cart.add(product); toast.show("✓ Добавлено в список"); }
-	function handleRemove(id) { cart.remove(id); toast.show("Убрано из списка"); }
-	function handleAddAll(products) { products.forEach(p => cart.add(p)); toast.show(`✓ Добавлено ${products.length} товаров`); }
+	function handleAdd(product) { cart.add(product); }
+	function handleRemove(id) { cart.remove(id); }
+	function handleAddAll(products) { products.forEach(p => cart.add(p)); }
 	function handleChipSelect(chipText) { sendMessage(chipText); }
 	function handleKeydown(e) {
 		if (e.key === "Enter" && !e.shiftKey && getCanSend()) {
@@ -201,9 +205,36 @@
 		/>
 	{/if}
 
-	<p class="text-xs text-base-content/60 text-center px-4">
-		Наличие и цены уточняйте у консультанта
-	</p>
+	<div class="text-center p-2 space-x-2">
+		<button class="btn btn-xs btn-error" onclick={async () => {
+			error = "Запрос...";
+			try {
+				const r = await fetch("https://api.kokolsk1y.ru/api/chat", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ message: "привет", catalog: catalogCompact, stream: false }),
+					cache: "no-store",
+					mode: "cors"
+				});
+				const d = await r.json();
+				error = "FETCH OK: " + (d.text || d.error || "???").slice(0, 60);
+			} catch(e) {
+				error = "FETCH FAIL: " + e.name + " " + e.message;
+			}
+		}}>Fetch</button>
+		<button class="btn btn-xs btn-warning" onclick={() => {
+			error = "XHR запрос...";
+			const xhr = new XMLHttpRequest();
+			xhr.open("POST", "https://api.kokolsk1y.ru/api/chat");
+			xhr.setRequestHeader("Content-Type", "application/json");
+			xhr.onload = () => { error = "XHR OK: " + xhr.responseText.slice(0, 60); };
+			xhr.onerror = () => { error = "XHR FAIL: status=" + xhr.status; };
+			xhr.ontimeout = () => { error = "XHR TIMEOUT"; };
+			xhr.timeout = 20000;
+			xhr.send(JSON.stringify({ message: "привет", catalog: catalogCompact, stream: false }));
+		}}>XHR</button>
+		<span class="text-xs">v17 · cat={catalogCompact.length}</span>
+	</div>
 
 	<div class="p-3 bg-base-100 border-t border-base-300 flex gap-2 items-end safe-bottom">
 		<textarea

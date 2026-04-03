@@ -13,8 +13,7 @@ export function streamChat({ message, history, catalog, onChunk, onDone, onError
 			const response = await fetch(WORKER_URL, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ message, history, catalog, stream: false }),
-				signal: controller.signal
+				body: JSON.stringify({ message, history, catalog, stream: false })
 			});
 
 			if (!response.ok) {
@@ -43,8 +42,7 @@ export function streamChat({ message, history, catalog, onChunk, onDone, onError
 
 			onDone?.(fullText);
 		} catch (err) {
-			if (err.name === "AbortError") return;
-			onError?.("Ошибка: " + err.message);
+			onError?.("ERR [" + err.name + "]: " + err.message);
 		}
 	})();
 
