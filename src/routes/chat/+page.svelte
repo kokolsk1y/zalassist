@@ -207,7 +207,7 @@
 	{/if}
 
 	<!-- Disclaimer -->
-	<p class="text-xs text-base-content/40 text-center px-4">
+	<p class="text-xs text-base-content/60 text-center px-4">
 		Наличие и цены уточняйте у консультанта
 	</p>
 
@@ -234,7 +234,7 @@
 
 	<!-- Character counter -->
 	{#if inputText.length > 400}
-		<p class="text-xs text-center pb-1 {inputText.length > 500 ? 'text-error' : 'text-base-content/40'}">
+		<p class="text-xs text-center pb-1 {inputText.length > 500 ? 'text-error' : 'text-base-content/60'}">
 			{inputText.length}/500
 		</p>
 	{/if}

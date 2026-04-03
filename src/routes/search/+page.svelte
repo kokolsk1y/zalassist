@@ -160,7 +160,7 @@
 					По запросу «<span class="font-semibold">{query || categoryParam}</span>» ничего не найдено
 				</p>
 				{#if fallbackResults.length > 0}
-					<p class="text-sm text-base-content/40 mb-4">Возможно, вы искали:</p>
+					<p class="text-sm text-base-content/60 mb-4">Возможно, вы искали:</p>
 					<div class="flex flex-col gap-3">
 						{#each fallbackResults as product (product.id)}
 							<ProductCard
@@ -204,7 +204,7 @@
 				{/each}
 			</div>
 
-			<p class="text-xs text-base-content/40 text-center mt-6 mb-4">
+			<p class="text-xs text-base-content/60 text-center mt-6 mb-4">
 				Наличие и цены уточняйте у консультанта
 			</p>
 		{/if}

@@ -10,10 +10,14 @@
 </script>
 
 <svelte:head>
+	<title>ЭлектроЦентр — Помощник в торговом зале</title>
+	<meta name="description" content="Подбор электротехнических товаров, поиск по артикулу, готовые комплекты" />
 	<meta name="theme-color" content="#2b7de0" />
 </svelte:head>
 
-{@render children()}
+<main>
+	{@render children()}
+</main>
 
 {#if cart.count > 0}
 	<button

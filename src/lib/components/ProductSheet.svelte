@@ -88,7 +88,7 @@
 			</button>
 
 			<!-- Дисклеймер -->
-			<p class="text-xs text-base-content/40 text-center mt-3">
+			<p class="text-xs text-base-content/60 text-center mt-3">
 				Наличие и цены уточняйте у консультанта
 			</p>
 		{/if}
