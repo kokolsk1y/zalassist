@@ -2,15 +2,7 @@
 	let { product, onselect, onadd, onremove, inCart = false } = $props();
 
 	function handleAdd() {
-		window.alert('onadd exists: ' + !!onadd + ', product.id: ' + product?.id);
-		if (onadd) {
-			try {
-				onadd(product);
-				window.alert('added ok, cart should update');
-			} catch(e) {
-				window.alert('ERROR: ' + e.message);
-			}
-		}
+		if (onadd) onadd(product);
 	}
 
 	function handleRemove() {
@@ -38,7 +30,7 @@
 			{#if inCart}
 				<button type="button" class="btn btn-success btn-circle w-12 h-12 text-xl" onclick={handleRemove}>✓</button>
 			{:else}
-				<button type="button" class="btn btn-primary btn-circle w-12 h-12 text-2xl" onclick={() => { window.alert('click works!'); handleAdd(); }}>+</button>
+				<button type="button" class="btn btn-primary btn-circle w-12 h-12 text-2xl" onclick={handleAdd}>+</button>
 			{/if}
 		</div>
 	</div>

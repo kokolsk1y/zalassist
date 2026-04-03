@@ -7,9 +7,12 @@ export const cart = {
 	add(product, qty = 1) {
 		const existing = items.find(i => i.id === product.id);
 		if (existing) {
-			existing.qty += qty;
+			// Создаём новый массив для тригера реактивности
+			items = items.map(i =>
+				i.id === product.id ? { ...i, qty: i.qty + qty } : i
+			);
 		} else {
-			items.push({ ...product, qty });
+			items = [...items, { ...product, qty }];
 		}
 	},
 
@@ -18,13 +21,12 @@ export const cart = {
 	},
 
 	updateQty(id, qty) {
-		const item = items.find(i => i.id === id);
-		if (item) {
-			if (qty <= 0) {
-				items = items.filter(i => i.id !== id);
-			} else {
-				item.qty = qty;
-			}
+		if (qty <= 0) {
+			items = items.filter(i => i.id !== id);
+		} else {
+			items = items.map(i =>
+				i.id === id ? { ...i, qty } : i
+			);
 		}
 	},
 
