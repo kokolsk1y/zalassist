@@ -1,5 +1,17 @@
 <script>
 	let { product, onselect, onadd, onremove, inCart = false } = $props();
+
+	function handleAdd() {
+		if (onadd) {
+			onadd(product);
+		}
+	}
+
+	function handleRemove() {
+		if (onremove) {
+			onremove(product.id);
+		}
+	}
 </script>
 
 <div class="card bg-base-100 shadow-sm">
@@ -18,19 +30,9 @@
 			</div>
 
 			{#if inCart}
-				<div
-					class="w-12 h-12 rounded-full bg-success flex items-center justify-center text-white text-xl cursor-pointer select-none"
-					role="button"
-					tabindex="0"
-					onclick={() => onremove(product.id)}
-				>✓</div>
+				<button type="button" class="btn btn-success btn-circle w-12 h-12 text-xl" onclick={handleRemove}>✓</button>
 			{:else}
-				<div
-					class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-2xl cursor-pointer select-none"
-					role="button"
-					tabindex="0"
-					onclick={() => onadd(product)}
-				>+</div>
+				<button type="button" class="btn btn-primary btn-circle w-12 h-12 text-2xl" onclick={handleAdd}>+</button>
 			{/if}
 		</div>
 	</div>
