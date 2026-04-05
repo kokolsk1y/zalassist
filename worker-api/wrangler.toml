@@ -1,0 +1,11 @@
+name = "zalassist-api"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+workers_dev = true
+
+routes = [
+  { pattern = "api.kokolsk1y.ru/*", zone_name = "kokolsk1y.ru" }
+]
+
+[vars]
+# OPENROUTER_API_KEY задаётся через: npx wrangler secret put OPENROUTER_API_KEY

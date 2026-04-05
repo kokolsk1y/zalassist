@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 800px;
+    height: 1100px;
+    background: #ffffff;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+  }
+  .header {
+    background: linear-gradient(135deg, #2b7de0 0%, #1a5cb0 100%);
+    color: white;
+    width: 100%;
+    text-align: center;
+    padding: 30px 20px;
+    border-radius: 20px 20px 0 0;
+  }
+  .header h1 {
+    font-size: 42px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 18px;
+    opacity: 0.9;
+  }
+  .content {
+    background: #f8f9fa;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+    border: 3px solid #2b7de0;
+    border-top: none;
+    border-radius: 0 0 20px 20px;
+  }
+  .qr-wrapper {
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+  }
+  .qr-wrapper img {
+    width: 400px;
+    height: 400px;
+    display: block;
+  }
+  .scan-text {
+    font-size: 28px;
+    font-weight: 600;
+    color: #2b7de0;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .features {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    width: 100%;
+  }
+  .feature {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .feature .icon { font-size: 32px; margin-bottom: 6px; }
+  .feature .text { font-size: 14px; color: #444; line-height: 1.3; }
+  .footer {
+    font-size: 14px;
+    color: #888;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>⚡ ЭлектроЦентр</h1>
+    <p>Умный помощник в торговом зале</p>
+  </div>
+  <div class="content">
+    <div class="scan-text">Наведите камеру на QR-код</div>
+    <div class="qr-wrapper">
+      <img src="static/qr-zalassist-large.png" alt="QR">
+    </div>
+    <div class="features">
+      <div class="feature">
+        <div class="icon">💬</div>
+        <div class="text">Подбор товаров<br>под вашу задачу</div>
+      </div>
+      <div class="feature">
+        <div class="icon">🔍</div>
+        <div class="text">Поиск<br>по артикулу</div>
+      </div>
+      <div class="feature">
+        <div class="icon">📋</div>
+        <div class="text">Готовые<br>комплекты</div>
+      </div>
+    </div>
+    <div class="footer">Бесплатно • Без регистрации • Наличие и цены уточняйте у консультанта</div>
+  </div>
+</body>
+</html>

@@ -180,7 +180,7 @@
 	}
 </script>
 
-<div class="flex flex-col h-[100dvh] bg-base-200">
+<div class="flex flex-col h-[calc(100dvh-4rem)] bg-base-200">
 	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2">
 		<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]" aria-label="Назад">
 			<ArrowLeft size={22} />
