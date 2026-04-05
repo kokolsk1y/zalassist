@@ -30,7 +30,7 @@
 				{#each cart.items as item (item.id)}
 					<div class="flex items-start gap-3 p-3 bg-base-200 rounded-lg">
 						<div class="flex-1 min-w-0">
-							<p class="font-mono text-lg font-bold truncate">{item.article}</p>
+							<p class="article-code text-lg font-bold truncate">{item.article}</p>
 							<p class="text-sm text-base-content/70 leading-tight">{item.name}</p>
 						</div>
 						<div class="flex items-center gap-1 shrink-0">

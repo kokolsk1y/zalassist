@@ -74,7 +74,7 @@
 						<div class="flex-1 min-w-0">
 							<p class="text-sm leading-tight line-clamp-2">{product.name}</p>
 							<div class="flex items-center gap-2 mt-1">
-								<span class="text-[13px] font-mono text-base-content/50">Арт. {product.article}</span>
+								<span class="text-[13px] article-code">Арт. {product.article}</span>
 								{#if product.price}
 									<span class="text-sm font-bold">{formatPrice(product.price)}</span>
 								{/if}

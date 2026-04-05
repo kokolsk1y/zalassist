@@ -62,7 +62,7 @@
 				<h3 class="text-lg font-bold leading-tight">{product.name}</h3>
 
 				<!-- Артикул -->
-				<p class="font-mono text-sm text-base-content/50 mt-1">Арт. {product.article}</p>
+				<p class="text-sm article-code mt-1">Арт. {product.article}</p>
 
 				<!-- Цена -->
 				{#if product.price}

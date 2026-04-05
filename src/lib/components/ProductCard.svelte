@@ -48,7 +48,7 @@
 	<div class="flex-1 min-w-0 flex flex-col justify-between">
 		<div>
 			<p class="text-sm font-semibold leading-tight line-clamp-2">{product.name}</p>
-			<p class="text-[13px] text-base-content/50 font-mono mt-0.5">Арт. {product.article}</p>
+			<p class="text-[13px] article-code mt-0.5">Арт. {product.article}</p>
 		</div>
 
 		<div class="flex items-end justify-between mt-1">

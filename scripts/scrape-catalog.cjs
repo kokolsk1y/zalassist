@@ -100,6 +100,17 @@ async function safeFetch(url, stats) {
   }
 }
 
+// ─── Декодирование HTML-entities ──────────────────────────────────────────
+function decodeEntities(str) {
+  return str
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)));
+}
+
 // ─── Парсинг товаров из HTML ───────────────────────────────────────────────
 function parseProducts(html, categoryName) {
   const productDataMap = new Map();
@@ -116,7 +127,7 @@ function parseProducts(html, categoryName) {
 
       const entry = {
         id: parseInt(p.ID),
-        name: (p.NAME || '').trim(),
+        name: decodeEntities((p.NAME || '').trim()),
         photo: p.PICT ? CONFIG.baseUrl + p.PICT.SRC : null,
         canBuy: p.CAN_BUY || false,
         quantity: parseFloat(p.MAX_QUANTITY) || 0,

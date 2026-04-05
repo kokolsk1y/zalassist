@@ -40,6 +40,16 @@
 	html {
 		font-family: "Inter", sans-serif;
 		-webkit-tap-highlight-color: transparent;
+		font-size: 16px;
+		line-height: 1.5;
+	}
+
+	/* Артикулы — везде одинаковый стиль */
+	.article-code {
+		font-family: "JetBrains Mono", monospace;
+		font-weight: 500;
+		letter-spacing: 0.02em;
+		color: oklch(45% 0.15 255);
 	}
 }
 
