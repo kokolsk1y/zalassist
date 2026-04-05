@@ -17,6 +17,49 @@
 		if (!price) return "";
 		return price.toLocaleString("ru-RU") + " ₽";
 	}
+
+	/**
+	 * Разбивает текст на сегменты: обычный текст и артикулы.
+	 * Убирает markdown ** вокруг артикулов.
+	 */
+	function parseContent(text, products) {
+		if (!text) return [{ type: "text", value: "" }];
+
+		// Убираем markdown bold ** из текста
+		let clean = text.replace(/\*\*/g, "");
+
+		if (!products || products.length === 0) {
+			return [{ type: "text", value: clean }];
+		}
+
+		// Собираем артикулы для подсветки
+		const articles = products
+			.map(p => p.article)
+			.filter(Boolean)
+			.sort((a, b) => b.length - a.length); // длинные первыми
+
+		if (articles.length === 0) return [{ type: "text", value: clean }];
+
+		// Создаём regex для всех артикулов (case-insensitive)
+		const escaped = articles.map(a => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+		const re = new RegExp(`(${escaped.join("|")})`, "gi");
+
+		const segments = [];
+		let lastIndex = 0;
+		let match;
+		while ((match = re.exec(clean)) !== null) {
+			if (match.index > lastIndex) {
+				segments.push({ type: "text", value: clean.slice(lastIndex, match.index) });
+			}
+			segments.push({ type: "article", value: match[0] });
+			lastIndex = re.lastIndex;
+		}
+		if (lastIndex < clean.length) {
+			segments.push({ type: "text", value: clean.slice(lastIndex) });
+		}
+
+		return segments.length > 0 ? segments : [{ type: "text", value: clean }];
+	}
 </script>
 
 <div class="chat {message.role === 'user' ? 'chat-end' : 'chat-start'}">
@@ -28,7 +71,17 @@
 		</div>
 	{/if}
 	<div class="chat-bubble {message.role === 'user' ? 'chat-bubble-primary' : ''} whitespace-pre-wrap">
-		{message.content}
+		{#if message.role === 'assistant' && message.products?.length > 0}
+			{#each parseContent(message.content, message.products) as seg}
+				{#if seg.type === "article"}
+					<span class="article-code bg-white/15 rounded px-1">{seg.value}</span>
+				{:else}
+					{seg.value}
+				{/if}
+			{/each}
+		{:else}
+			{message.content}
+		{/if}
 		{#if message.streaming}
 			<span class="loading loading-dots loading-xs ml-1"></span>
 		{/if}
