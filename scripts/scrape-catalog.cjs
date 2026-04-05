@@ -222,15 +222,40 @@ async function scrapeCategory(cat, stats) {
 
 // ─── Извлечение бренда из названия ──────────────────────────────────────────
 const KNOWN_BRANDS = [
-  'Schneider Electric', 'EKF AVERES', 'EKF PROXIMA', 'EKF',
-  'IEK', 'ИЕК', 'ИЭК', 'ABB', 'Legrand', 'TDM', 'Eaton', 'CHINT',
-  'KNIPEX', 'Gauss', 'ASD', 'WERA', 'Haupa', 'TOPEX', 'CONDTROL',
-  'CEM', 'RUCELF', 'ANDELI', 'Makita', 'Bosch', 'DeWalt', 'Philips',
-  'Osram', 'Navigator', 'Camelion', 'LEDURO', 'NEO', 'ALPEN', 'STRONG',
-  'Fenix', 'Thermor', 'WERKEL', 'Werkel', 'Feron', 'STEKKER', 'IN HOME',
-  'DKC', 'DEKraft', 'КЭАЗ', 'DORI', 'General', 'SWG', 'Jazzway',
-  'Ресанта', 'SVEN', 'Gardena', 'Husqvarna', 'STIHL', 'Metabo',
-  'Hilti', 'Stanley', 'MATRIX', 'ВИХРЬ', 'Зубр', 'PATRIOT',
+  // Длинные имена первыми (чтобы "Schneider Electric" не перехватился как "Electric")
+  'Schneider Electric', 'EKF AVERES', 'EKF PROXIMA', 'IN HOME',
+  // Автоматика и щиты
+  'IEK', 'ИЕК', 'ИЭК', 'ABB', 'Legrand', 'TDM', 'Eaton', 'CHINT', 'EKF',
+  'ETI', 'GENERICA', 'ONI', 'DEKraft', 'КЭАЗ', 'DKC',
+  'WAGO', 'BALS', 'Emas', 'MEYERTEC', 'Meyertec', 'FINDER',
+  // Кабель и электромонтаж
+  'REXANT', 'RIPO', 'PROCONNECT', 'TEHPLAST', 'Ecoplast',
+  'Промрукав', 'ELEKTROPLAST', 'KRANZ', 'RocketSocket',
+  // Розетки и выключатели
+  'Bironi', 'Livolo', 'OVIVO', 'Bylectrica', 'STEKKER', 'WERKEL', 'Werkel',
+  'Ritter', 'UNIVersal',
+  // Освещение
+  'Gauss', 'Feron', 'Navigator', 'Osram', 'Philips', 'LEDURO',
+  'LEEK', 'Leek', 'WOLTA', 'Uniel', 'Jazzway', 'ERGOLUX', 'Ergolux',
+  'Ultraflash', 'Ledline', 'SWG', 'ASD', 'GTV', 'KODAK', 'Kodak',
+  // Инструмент
+  'HOEGERT', 'Makita', 'Bosch', 'DeWalt', 'Metabo', 'Hilti',
+  'Stanley', 'MATRIX', 'KNIPEX', 'WERA', 'Haupa', 'TOPEX',
+  'CHAMPION', 'WORKPRO', 'FELO', 'AEG', 'STABILA', 'Armero',
+  'VERTO', 'KOELNER', 'HONITON',
+  // Измерительные приборы
+  'CONDTROL', 'CEM', 'MASTECH', 'NITECORE',
+  // Климат и обогрев
+  'Thermor', 'AURAMAX',
+  // Бытовые и садовые
+  'Gardena', 'Husqvarna', 'STIHL', 'KARCHER',
+  // Электропитание и стабилизаторы
+  'RUCELF', 'Ресанта', 'SVEN', 'ВИХРЬ',
+  // Общие
+  'Зубр', 'PATRIOT', 'Fenix', 'NEO', 'ALPEN', 'STRONG',
+  'Camelion', 'ANDELI', 'DORI', 'General', 'ALUMET', 'KRAUSE',
+  'VARTA', 'BRAUBERG', 'Эра', 'ERA', 'CUTOP',
+  'STAVTOOL', 'BREZO',
 ];
 
 function extractBrand(name) {

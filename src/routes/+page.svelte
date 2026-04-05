@@ -107,7 +107,7 @@
 	</form>
 
 	<!-- Категории — визуальная сетка -->
-	<div class="w-full max-w-md grid grid-cols-3 gap-3 mb-6">
+	<div class="w-full max-w-md grid grid-cols-3 gap-3 mb-2">
 		{#each categories as cat}
 			<button
 				onclick={() => goto(`${base}/search/?category=${encodeURIComponent(cat.query)}`)}
@@ -118,6 +118,13 @@
 			</button>
 		{/each}
 	</div>
+
+	<button
+		onclick={() => goto(`${base}/search/`)}
+		class="w-full max-w-md btn btn-ghost text-primary mb-6 min-h-[44px]"
+	>
+		Все категории →
+	</button>
 
 	<!-- AI блок -->
 	<button
