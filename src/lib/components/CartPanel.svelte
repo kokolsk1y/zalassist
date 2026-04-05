@@ -55,10 +55,11 @@
 			<!-- Итого -->
 			{@const total = cart.items.reduce((sum, item) => sum + (item.price || 0) * item.qty, 0)}
 			{#if total > 0}
-				<div class="flex items-center justify-between p-3 bg-base-200 rounded-lg mb-2">
+				<div class="flex items-center justify-between p-3 bg-base-200 rounded-lg mb-1">
 					<span class="text-base-content/70">Примерная сумма:</span>
 					<span class="text-xl font-bold">~{total.toLocaleString("ru-RU")} ₽</span>
 				</div>
+				<p class="text-xs text-base-content/50 text-center mb-3">Цены розничные. Ваша скидка — у менеджера</p>
 			{/if}
 
 			<div class="flex flex-col gap-2">
@@ -75,8 +76,13 @@
 					{/if}
 				</button>
 
+				<a href="https://wa.me/74012555514?text={encodeURIComponent(cart.formatText())}"
+					target="_blank" rel="noopener" class="btn btn-success w-full gap-2 min-h-[44px]">
+					<Send size={18} /> Отправить менеджеру
+				</a>
+
 				<div class="flex gap-2">
-					<a href="mailto:?subject=Список товаров ЭлектроЦентр&body={encodeURIComponent(cart.formatText())}"
+					<a href="mailto:sale@stv39.ru?subject=Список товаров ЭлектроЦентр&body={encodeURIComponent(cart.formatText())}"
 						class="btn btn-outline flex-1 gap-1 min-h-[44px]">
 						<Mail size={20} /> Почта
 					</a>

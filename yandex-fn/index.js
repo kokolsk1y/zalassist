@@ -127,8 +127,8 @@ module.exports.handler = async function (event, context) {
     if (!message || typeof message !== "string" || !message.trim()) {
         return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Сообщение обязательно" }) };
     }
-    if (message.length > 500) {
-        return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Макс 500 символов" }) };
+    if (message.length > 1500) {
+        return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Макс 1500 символов" }) };
     }
 
     const catalogText = typeof catalog === "string" ? catalog.slice(0, 50000) : "";

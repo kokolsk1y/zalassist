@@ -49,7 +49,7 @@
 	let aiChips = $state(null);
 
 	function getCartIds() { return new Set(cartItems.map(i => i.id)); }
-	function getCanSend() { return inputText.trim().length > 0 && inputText.length <= 500 && !isLoading; }
+	function getCanSend() { return inputText.trim().length > 0 && inputText.length <= 1500 && !isLoading; }
 	function getCurrentChips() {
 		if (messages.length === 0) return INITIAL_CHIPS;
 		if (isLoading) return [];
@@ -98,7 +98,7 @@
 
 	async function sendMessage(text) {
 		if (!text?.trim() || isLoading) return;
-		const userMsg = text.trim().slice(0, 500);
+		const userMsg = text.trim().slice(0, 1500);
 		inputText = "";
 		error = null;
 		aiChips = null;
@@ -232,7 +232,7 @@
 			placeholder="Опишите задачу..."
 			bind:value={inputText}
 			onkeydown={handleKeydown}
-			maxlength="500"
+			maxlength="1500"
 			rows="1"
 			disabled={isLoading}
 		></textarea>
@@ -246,9 +246,9 @@
 		</button>
 	</div>
 
-	{#if inputText.length > 400}
-		<p class="text-xs text-center pb-1 {inputText.length > 500 ? 'text-error' : 'text-base-content/60'}">
-			{inputText.length}/500
+	{#if inputText.length > 1200}
+		<p class="text-xs text-center pb-1 {inputText.length > 1500 ? 'text-error' : 'text-base-content/60'}">
+			{inputText.length}/1500
 		</p>
 	{/if}
 </div>

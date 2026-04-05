@@ -28,6 +28,29 @@
 	let activeCategory = $state("");
 	let visibleCount = $state(PAGE_SIZE);
 
+	// Сортировка и фильтр по цене
+	let sortBy = $state("relevance");
+	let priceMin = $state("");
+	let priceMax = $state("");
+	let showFilters = $state(false);
+
+	function getFilteredResults() {
+		let filtered = results;
+		const min = Number(priceMin) || 0;
+		const max = Number(priceMax) || Infinity;
+		if (min > 0 || max < Infinity) {
+			filtered = filtered.filter(p => p.price >= min && p.price <= max);
+		}
+		if (sortBy === "price_asc") {
+			filtered = [...filtered].sort((a, b) => (a.price || 0) - (b.price || 0));
+		} else if (sortBy === "price_desc") {
+			filtered = [...filtered].sort((a, b) => (b.price || 0) - (a.price || 0));
+		} else if (sortBy === "name") {
+			filtered = [...filtered].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ru"));
+		}
+		return filtered;
+	}
+
 	function parseUrl() {
 		const url = new URL(window.location.href);
 		query = url.searchParams.get("q") || "";
@@ -176,21 +199,51 @@
 				</button>
 			</div>
 		{:else}
+			{@const displayed = getFilteredResults()}
 			{#if activeCategory}
 				<div class="flex items-center gap-2 mb-3">
 					<h2 class="text-lg font-bold text-base-content">{activeCategory}</h2>
-					<span class="badge badge-sm badge-ghost">{results.length}</span>
+					<span class="badge badge-sm badge-ghost">{displayed.length}</span>
 					<button onclick={() => goto(`${base}/search/`)} class="ml-auto text-sm text-primary">Сбросить</button>
 				</div>
 			{:else}
 				<div class="flex items-center gap-2 mb-3">
-					<p class="text-sm text-base-content/60">Результатов: {results.length}</p>
+					<p class="text-sm text-base-content/60">Результатов: {displayed.length}</p>
 					<button onclick={() => goto(`${base}/search/`)} class="ml-auto text-sm text-primary">Сбросить</button>
 				</div>
 			{/if}
 
+			<!-- Сортировка и фильтр -->
+			<div class="flex items-center gap-2 mb-3">
+				<select bind:value={sortBy} class="select select-bordered select-sm flex-1 min-h-[36px]">
+					<option value="relevance">По релевантности</option>
+					<option value="price_asc">Сначала дешёвые</option>
+					<option value="price_desc">Сначала дорогие</option>
+					<option value="name">По названию</option>
+				</select>
+				<button
+					class="btn btn-sm btn-outline min-h-[36px] gap-1"
+					class:btn-primary={showFilters || priceMin || priceMax}
+					onclick={() => showFilters = !showFilters}
+				>
+					Цена {#if priceMin || priceMax}({priceMin || "0"}–{priceMax || "∞"}){/if}
+				</button>
+			</div>
+
+			{#if showFilters}
+				<div class="flex items-center gap-2 mb-3">
+					<input type="number" bind:value={priceMin} placeholder="от" class="input input-bordered input-sm w-24 min-h-[36px]" min="0" />
+					<span class="text-base-content/40">—</span>
+					<input type="number" bind:value={priceMax} placeholder="до" class="input input-bordered input-sm w-24 min-h-[36px]" min="0" />
+					<span class="text-xs text-base-content/50">₽</span>
+					{#if priceMin || priceMax}
+						<button class="btn btn-ghost btn-xs" onclick={() => { priceMin = ""; priceMax = ""; }}>Сбросить</button>
+					{/if}
+				</div>
+			{/if}
+
 			<div class="flex flex-col gap-3">
-				{#each results.slice(0, visibleCount) as product (product.id)}
+				{#each displayed.slice(0, visibleCount) as product (product.id)}
 					<ProductCard
 						{product}
 						onselect={(p) => selectedProduct = p}
@@ -201,12 +254,12 @@
 				{/each}
 			</div>
 
-			{#if results.length > visibleCount}
+			{#if displayed.length > visibleCount}
 				<button
 					class="btn btn-outline w-full mt-4 min-h-[44px]"
 					onclick={() => visibleCount += PAGE_SIZE}
 				>
-					Показать ещё ({results.length - visibleCount} осталось)
+					Показать ещё ({displayed.length - visibleCount} осталось)
 				</button>
 			{/if}
 
