@@ -1,12 +1,14 @@
 <script>
-	import { ShoppingCart } from "lucide-svelte";
+	import { ShoppingCart, Check, PackageOpen, X } from "lucide-svelte";
 
 	let { product, onclose, onadd } = $props();
 	let dialog;
 	let startY = 0;
+	let imgError = $state(false);
 
 	$effect(() => {
 		if (product && dialog) {
+			imgError = false;
 			dialog.showModal();
 		} else if (!product && dialog) {
 			dialog.close();
@@ -19,78 +21,95 @@
 
 	function handleTouchEnd(e) {
 		const diff = e.changedTouches[0].clientY - startY;
-		if (diff > 80) onclose?.(); // свайп вниз > 80px → закрыть
+		if (diff > 80) onclose?.();
+	}
+
+	function formatPrice(price) {
+		if (!price) return "";
+		return price.toLocaleString("ru-RU") + " ₽";
 	}
 </script>
 
 <dialog bind:this={dialog} class="modal modal-bottom" onclose={() => onclose?.()}>
-	<div class="modal-box rounded-t-2xl max-h-[80vh]"
+	<div class="modal-box rounded-t-2xl max-h-[85vh] p-0"
 		ontouchstart={handleTouchStart}
 		ontouchend={handleTouchEnd}>
 		<!-- Индикатор свайпа -->
-		<div class="w-10 h-1 bg-base-300 rounded-full mx-auto mb-3"></div>
+		<div class="w-10 h-1 bg-base-300 rounded-full mx-auto mt-3 mb-2"></div>
+
+		<!-- Кнопка закрыть -->
+		<button class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px] absolute right-2 top-2 z-10" onclick={() => onclose?.()}>
+			<X size={22} />
+		</button>
+
 		{#if product}
-			<!-- Артикул -->
-			<p class="font-mono text-lg text-primary font-bold">{product.article}</p>
-
-			<!-- Название -->
-			<h3 class="text-xl font-bold mt-2 leading-tight">{product.name}</h3>
-
-			<!-- Бренд + Категория -->
-			<div class="flex flex-wrap gap-2 mt-3">
-				<span class="badge badge-primary badge-outline">{product.brand}</span>
-				<span class="badge badge-ghost">{product.category}</span>
-				{#if product.subcategory}
-					<span class="badge badge-ghost badge-sm">{product.subcategory}</span>
-				{/if}
-			</div>
-
-			<!-- Наличие -->
-			<div class="mt-3">
-				{#if product.inStock}
-					<span class="badge badge-success">В наличии</span>
+			<!-- Фото -->
+			<div class="w-full h-56 bg-base-200 flex items-center justify-center overflow-hidden">
+				{#if product.photo && !imgError}
+					<img
+						src={product.photo}
+						alt={product.name}
+						class="max-w-full max-h-full object-contain p-4"
+						onerror={() => imgError = true}
+					/>
 				{:else}
-					<span class="badge badge-warning">Под заказ</span>
+					<PackageOpen size={64} class="text-base-content/15" />
 				{/if}
 			</div>
 
-			<!-- Описание -->
-			{#if product.description}
-				<p class="text-sm text-base-content/70 mt-4">{product.description}</p>
-			{/if}
+			<div class="p-5">
+				<!-- Название -->
+				<h3 class="text-lg font-bold leading-tight">{product.name}</h3>
 
-			<!-- Характеристики -->
-			{#if product.specs && Object.keys(product.specs).length > 0}
-				<div class="mt-4">
-					<h4 class="text-sm font-semibold mb-2">Характеристики</h4>
-					<div class="overflow-x-auto">
-						<table class="table table-sm table-zebra">
-							<tbody>
-								{#each Object.entries(product.specs) as [key, value]}
-									<tr>
-										<td class="text-base-content/60 font-medium">{key}</td>
-										<td>{value}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
+				<!-- Артикул -->
+				<p class="font-mono text-sm text-base-content/50 mt-1">Арт. {product.article}</p>
+
+				<!-- Цена -->
+				{#if product.price}
+					<div class="flex items-baseline gap-3 mt-4">
+						<span class="text-2xl font-bold">{formatPrice(product.price)}</span>
+						{#if product.oldPrice}
+							<span class="text-base text-base-content/40 line-through">{formatPrice(product.oldPrice)}</span>
+						{/if}
 					</div>
+				{/if}
+
+				<!-- Наличие -->
+				<div class="mt-3">
+					{#if product.inStock}
+						<p class="text-sm text-success flex items-center gap-1.5">
+							<Check size={16} />
+							В наличии{#if product.quantity} — {product.quantity} {product.unit || "шт"}{/if}
+						</p>
+					{:else}
+						<p class="text-sm text-warning">Под заказ</p>
+					{/if}
 				</div>
-			{/if}
 
-			<!-- Кнопка "В список" -->
-			<button
-				class="btn btn-primary btn-block mt-6 gap-2"
-				onclick={() => { onadd?.(product); onclose?.(); }}
-			>
-				<ShoppingCart size={18} />
-				В список для менеджера
-			</button>
+				<!-- Бренд + Категория -->
+				<div class="flex flex-wrap gap-2 mt-4">
+					{#if product.brand}
+						<span class="badge badge-primary badge-outline">{product.brand}</span>
+					{/if}
+					{#if product.category}
+						<span class="badge badge-ghost">{product.category}</span>
+					{/if}
+				</div>
 
-			<!-- Дисклеймер -->
-			<p class="text-xs text-base-content/60 text-center mt-3">
-				Наличие и цены уточняйте у консультанта
-			</p>
+				<!-- Кнопка "В список" -->
+				<button
+					class="btn btn-primary btn-block mt-6 gap-2"
+					onclick={() => { onadd?.(product); onclose?.(); }}
+				>
+					<ShoppingCart size={18} />
+					В список для менеджера
+				</button>
+
+				<!-- Дисклеймер -->
+				<p class="text-xs text-base-content/50 text-center mt-3 pb-2">
+					Наличие и цены уточняйте у консультанта
+				</p>
+			</div>
 		{/if}
 	</div>
 	<form method="dialog" class="modal-backdrop">

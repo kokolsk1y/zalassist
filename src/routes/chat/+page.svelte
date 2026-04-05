@@ -4,11 +4,11 @@
 	import { onMount, onDestroy } from "svelte";
 	import { ArrowLeft, Send, MessageSquare } from "lucide-svelte";
 	import { loadCatalog } from "$lib/data/catalog.js";
-	import { formatCatalogForAI } from "$lib/ai/prompt.js";
-	// import { streamChat } from "$lib/ai/client.js";
+	import { formatCatalogForAI, selectItemsForAI } from "$lib/ai/prompt.js";
+	import { streamChat } from "$lib/ai/client.js";
 	import { extractProducts } from "$lib/ai/parse.js";
-	// import { useCart } from "$lib/stores/cart.svelte.js";
-	// import { toast } from "$lib/stores/toast.svelte.js";
+	import { createSearchEngine } from "$lib/search/engine.js";
+	import { cartStore, cartAdd, cartRemove } from "$lib/stores/cart.js";
 	import ChatMessage from "$lib/components/ChatMessage.svelte";
 	import QuickChips from "$lib/components/QuickChips.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
@@ -35,21 +35,20 @@
 		return { text, chips: null };
 	}
 
-	const cart = { items: [], count: 0, add() {}, remove() {}, updateQty() {}, clear() {}, formatText() { return ""; } };
+	let cartItems = $state([]);
 
 	let messages = $state([]);
 	let inputText = $state("");
 	let isLoading = $state(false);
 	let error = $state(null);
 	let catalogItems = $state([]);
-	let catalogCompact = $state("");
+	let searchEngine = $state(null);
 	let abortFn = $state(null);
 	let chatContainer;
 	let selectedProduct = $state(null);
 	let aiChips = $state(null);
 
-	// Вычисляемые значения через функции вместо $derived
-	function getCartIds() { return new Set(cart.items.map(i => i.id)); }
+	function getCartIds() { return new Set(cartItems.map(i => i.id)); }
 	function getCanSend() { return inputText.trim().length > 0 && inputText.length <= 500 && !isLoading; }
 	function getCurrentChips() {
 		if (messages.length === 0) return INITIAL_CHIPS;
@@ -58,10 +57,12 @@
 	}
 
 	onMount(async () => {
+		const unsub = cartStore.subscribe(v => { cartItems = v; });
+
 		try {
 			const catalog = await loadCatalog();
 			catalogItems = catalog.items;
-			catalogCompact = formatCatalogForAI(catalog.items);
+			searchEngine = createSearchEngine(catalog.items);
 		} catch (e) {
 			error = "Не удалось загрузить каталог";
 		}
@@ -76,7 +77,9 @@
 		} catch {}
 	});
 
-	onDestroy(() => { abortFn?.(); });
+	onDestroy(() => {
+		abortFn?.();
+	});
 
 	function saveChat() {
 		try {
@@ -102,7 +105,7 @@
 
 		messages = [...messages, { role: "user", content: userMsg, products: null, streaming: false }];
 		const aiMsgIndex = messages.length;
-		messages = [...messages, { role: "assistant", content: "⏳ Думаю...", products: null, streaming: true }];
+		messages = [...messages, { role: "assistant", content: "", products: null, streaming: true }];
 		isLoading = true;
 		scrollToBottom();
 
@@ -111,66 +114,63 @@
 			.map(m => ({ role: m.role, content: m.content }))
 			.slice(-20);
 
-		try {
-			function fetchWithTimeout(body, ms = 12000) {
-				return Promise.race([
-					fetch("https://api.kokolsk1y.ru/api/chat", {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify(body)
-					}).then(async r => {
-						if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Код " + r.status);
-						return r.json();
-					}),
-					new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
-				]);
-			}
-
-			let data;
-			const body = { message: userMsg, history, catalog: catalogCompact, stream: false };
-			for (let attempt = 0; attempt < 3; attempt++) {
-				try {
-					if (attempt > 0) {
-						await new Promise(r => setTimeout(r, 500));
-						messages[aiMsgIndex] = { ...messages[aiMsgIndex], content: "⏳ Попытка " + (attempt + 1) + "..." };
-						messages = [...messages];
-					}
-					data = await fetchWithTimeout(body);
-					break;
-				} catch (e) {
-					if (attempt === 2) throw e;
-				}
-			}
-
-			const fullText = data.text || "Пустой ответ";
-			const { text: cleanText, chips } = parseChipsFromResponse(fullText);
-
-			messages[aiMsgIndex] = {
-				...messages[aiMsgIndex],
-				content: cleanText,
-				streaming: false,
-				products: extractProducts(cleanText, catalogItems)
-			};
-			messages = [...messages];
-			aiChips = chips;
-			saveChat();
-		} catch (err) {
-			messages[aiMsgIndex] = {
-				...messages[aiMsgIndex],
-				content: "Ошибка: " + err.name + " — " + err.message,
-				streaming: false
-			};
-			messages = [...messages];
-			error = err.message;
+		// Предварительный поиск: отбираем 50 релевантных товаров для AI
+		let catalogSubset = null;
+		if (searchEngine && catalogItems.length > 0) {
+			const relevant = selectItemsForAI(userMsg, history, searchEngine, catalogItems, 50);
+			catalogSubset = formatCatalogForAI(relevant);
 		}
 
-		isLoading = false;
-		scrollToBottom();
+		abortFn = streamChat({
+			message: userMsg,
+			history,
+			catalogSubset,
+			onChunk(delta, fullText) {
+				// Скрываем [CHIPS:...] во время стриминга
+				const clean = fullText.replace(/\[CHIPS:.*$/s, "").trimEnd();
+				messages[aiMsgIndex] = { ...messages[aiMsgIndex], content: clean, streaming: true };
+				messages = [...messages];
+				scrollToBottom();
+			},
+			onDone(fullText) {
+				const { text: cleanText, chips } = parseChipsFromResponse(fullText);
+				messages[aiMsgIndex] = {
+					...messages[aiMsgIndex],
+					content: cleanText,
+					streaming: false,
+					products: extractProducts(cleanText, catalogItems),
+				};
+				messages = [...messages];
+				aiChips = chips;
+				isLoading = false;
+				abortFn = null;
+				saveChat();
+				scrollToBottom();
+			},
+			onError(errMsg) {
+				messages[aiMsgIndex] = {
+					...messages[aiMsgIndex],
+					content: "Ошибка: " + errMsg,
+					streaming: false,
+				};
+				messages = [...messages];
+				error = errMsg;
+				isLoading = false;
+				abortFn = null;
+				scrollToBottom();
+			},
+		});
 	}
 
-	function handleAdd(product) { cart.add(product); }
-	function handleRemove(id) { cart.remove(id); }
-	function handleAddAll(products) { products.forEach(p => cart.add(p)); }
+	function handleAdd(product) {
+		cartAdd(product);
+	}
+	function handleRemove(id) {
+		cartRemove(id);
+	}
+	function handleAddAll(products) {
+		products.forEach(p => cartAdd(p));
+	}
 	function handleChipSelect(chipText) { sendMessage(chipText); }
 	function handleKeydown(e) {
 		if (e.key === "Enter" && !e.shiftKey && getCanSend()) {
@@ -182,8 +182,8 @@
 
 <div class="flex flex-col h-[100dvh] bg-base-200">
 	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2">
-		<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-sm btn-circle" aria-label="Назад">
-			<ArrowLeft size={20} />
+		<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]" aria-label="Назад">
+			<ArrowLeft size={22} />
 		</button>
 		<span class="text-lg font-bold ml-2 flex-1">Подбор под задачу</span>
 	</div>

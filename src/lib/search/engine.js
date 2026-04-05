@@ -55,7 +55,7 @@ export function createSearchEngine(items) {
 
 	miniSearch.addAll(enriched);
 
-	function search(query, limit = 15) {
+	function search(query, limit = 30) {
 		if (!query || !query.trim()) return [];
 
 		const trimmed = query.trim();

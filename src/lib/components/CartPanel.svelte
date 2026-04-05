@@ -34,23 +34,32 @@
 							<p class="text-sm text-base-content/70 leading-tight">{item.name}</p>
 						</div>
 						<div class="flex items-center gap-1 shrink-0">
-							<button class="btn btn-ghost btn-xs btn-circle"
+							<button class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]"
 								onclick={() => cart.updateQty(item.id, item.qty - 1)}>
-								<Minus size={14} />
+								<Minus size={20} />
 							</button>
-							<span class="w-8 text-center font-bold">{item.qty}</span>
-							<button class="btn btn-ghost btn-xs btn-circle"
+							<span class="w-10 text-center text-lg font-bold">{item.qty}</span>
+							<button class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]"
 								onclick={() => cart.updateQty(item.id, item.qty + 1)}>
-								<Plus size={14} />
+								<Plus size={20} />
 							</button>
-							<button class="btn btn-ghost btn-xs btn-circle text-error"
+							<button class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px] text-error"
 								onclick={() => cart.remove(item.id)}>
-								<Trash2 size={14} />
+								<Trash2 size={20} />
 							</button>
 						</div>
 					</div>
 				{/each}
 			</div>
+
+			<!-- Итого -->
+			{@const total = cart.items.reduce((sum, item) => sum + (item.price || 0) * item.qty, 0)}
+			{#if total > 0}
+				<div class="flex items-center justify-between p-3 bg-base-200 rounded-lg mb-2">
+					<span class="text-base-content/70">Примерная сумма:</span>
+					<span class="text-xl font-bold">~{total.toLocaleString("ru-RU")} ₽</span>
+				</div>
+			{/if}
 
 			<div class="flex flex-col gap-2">
 				<button class="btn btn-primary w-full gap-2"
@@ -68,20 +77,20 @@
 
 				<div class="flex gap-2">
 					<a href="mailto:?subject=Список товаров ЭлектроЦентр&body={encodeURIComponent(cart.formatText())}"
-						class="btn btn-outline btn-sm flex-1 gap-1">
-						<Mail size={16} /> Почта
+						class="btn btn-outline flex-1 gap-1 min-h-[44px]">
+						<Mail size={20} /> Почта
 					</a>
 					<a href="https://wa.me/?text={encodeURIComponent(cart.formatText())}"
-						target="_blank" rel="noopener" class="btn btn-outline btn-sm flex-1 gap-1">
-						<Send size={16} /> WhatsApp
+						target="_blank" rel="noopener" class="btn btn-outline flex-1 gap-1 min-h-[44px]">
+						<Send size={20} /> WhatsApp
 					</a>
 					<a href="https://t.me/share/url?text={encodeURIComponent(cart.formatText())}"
-						target="_blank" rel="noopener" class="btn btn-outline btn-sm flex-1 gap-1">
-						<Send size={16} /> Telegram
+						target="_blank" rel="noopener" class="btn btn-outline flex-1 gap-1 min-h-[44px]">
+						<Send size={20} /> Telegram
 					</a>
 				</div>
 
-				<button class="btn btn-ghost btn-sm" onclick={() => cart.clear()}>
+				<button class="btn btn-ghost min-h-[44px]" onclick={() => cart.clear()}>
 					Очистить список
 				</button>
 			</div>

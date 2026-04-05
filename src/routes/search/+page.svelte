@@ -10,18 +10,10 @@
 	import ProductCard from "$lib/components/ProductCard.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
 
-	const categoryMap = {
-		"Автоматы": "Автоматические выключатели",
-		"Кабель": "Кабель и провод",
-		"Розетки": "Розетки и выключатели",
-		"Щиты": "Щиты и боксы",
-		"Освещение": "Освещение",
-		"УЗО": "УЗО",
-		"АВДТ": "АВДТ (дифавтоматы)",
-		"Каналы": "Кабельные каналы"
-	};
-	const chipLabels = Object.keys(categoryMap);
 	const cart = useCart();
+	let categories = $state([]);
+
+	const PAGE_SIZE = 20;
 
 	let catalog = $state(null);
 	let engine = $state(null);
@@ -34,17 +26,19 @@
 	let query = $state("");
 	let categoryParam = $state("");
 	let activeCategory = $state("");
+	let visibleCount = $state(PAGE_SIZE);
 
 	function parseUrl() {
 		const url = new URL(window.location.href);
 		query = url.searchParams.get("q") || "";
 		categoryParam = url.searchParams.get("category") || "";
-		activeCategory = categoryMap[categoryParam] || "";
+		activeCategory = categoryParam;
 		inputValue = query || inputValue;
 	}
 
 	function runSearch() {
 		if (!engine || !catalog) return;
+		visibleCount = PAGE_SIZE;
 		if (activeCategory) {
 			results = catalog.items.filter(i => i.category === activeCategory);
 			isZeroResult = results.length === 0;
@@ -72,6 +66,9 @@
 		try {
 			catalog = await loadCatalog();
 			engine = createSearchEngine(catalog.items);
+			// Собираем уникальные категории из каталога
+			const catSet = new Set(catalog.items.map(i => i.category).filter(Boolean));
+			categories = [...catSet].sort();
 			runSearch();
 			loading = false;
 		} catch (e) {
@@ -105,23 +102,23 @@
 	<!-- Header -->
 	<div class="sticky top-0 bg-base-100 shadow-sm z-40 px-4 py-3">
 		<div class="flex items-center gap-3 max-w-md mx-auto">
-			<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-sm btn-circle" aria-label="Назад">
-				<ArrowLeft size={20} />
+			<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]" aria-label="Назад">
+				<ArrowLeft size={22} />
 			</button>
 			<div class="flex-1 relative">
 				<input
 					type="text"
 					placeholder="Артикул, название или задача..."
-					class="input input-bordered input-sm w-full pr-10"
+					class="input input-bordered w-full pr-12 min-h-[44px] text-base"
 					bind:value={inputValue}
 					onkeydown={(e) => { if (e.key === "Enter") handleSearch(); }}
 				/>
 				<button
-					class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs btn-circle"
+					class="absolute right-1 top-1/2 -translate-y-1/2 btn btn-ghost btn-circle min-h-[40px] min-w-[40px]"
 					onclick={handleSearch}
 					aria-label="Искать"
 				>
-					<Search size={16} />
+					<Search size={20} />
 				</button>
 			</div>
 		</div>
@@ -144,12 +141,12 @@
 		{:else if !query && !activeCategory}
 			<h2 class="text-lg font-bold text-base-content mb-4">Выберите категорию</h2>
 			<div class="flex flex-wrap gap-2">
-				{#each chipLabels as chip}
+				{#each categories as cat}
 					<button
-						onclick={() => goto(`${base}/search/?category=${encodeURIComponent(chip)}`)}
+						onclick={() => goto(`${base}/search/?category=${encodeURIComponent(cat)}`)}
 						class="badge badge-lg badge-outline py-3 px-4 cursor-pointer hover:bg-primary hover:text-primary-content transition-colors"
 					>
-						{chip}
+						{cat}
 					</button>
 				{/each}
 			</div>
@@ -173,8 +170,8 @@
 						{/each}
 					</div>
 				{/if}
-				<button onclick={() => goto(`${base}/chat/`)} class="btn btn-outline btn-sm gap-2 mt-6">
-					<MessageSquare size={16} />
+				<button onclick={() => goto(`${base}/chat/`)} class="btn btn-outline gap-2 mt-6 min-h-[44px]">
+					<MessageSquare size={20} />
 					Спросить ИИ-помощника
 				</button>
 			</div>
@@ -193,7 +190,7 @@
 			{/if}
 
 			<div class="flex flex-col gap-3">
-				{#each results as product (product.id)}
+				{#each results.slice(0, visibleCount) as product (product.id)}
 					<ProductCard
 						{product}
 						onselect={(p) => selectedProduct = p}
@@ -203,6 +200,15 @@
 					/>
 				{/each}
 			</div>
+
+			{#if results.length > visibleCount}
+				<button
+					class="btn btn-outline w-full mt-4 min-h-[44px]"
+					onclick={() => visibleCount += PAGE_SIZE}
+				>
+					Показать ещё ({results.length - visibleCount} осталось)
+				</button>
+			{/if}
 
 			<p class="text-xs text-base-content/60 text-center mt-6 mb-4">
 				Наличие и цены уточняйте у консультанта
