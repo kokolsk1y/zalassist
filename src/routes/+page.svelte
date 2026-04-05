@@ -3,12 +3,16 @@
 	import { goto } from "$app/navigation";
 	import { onMount } from "svelte";
 	import { loadCatalog, getCatalogDate } from "$lib/data/catalog.js";
+	import { createSearchEngine } from "$lib/search/engine.js";
 	import { Search, MessageSquare, Zap, Lightbulb, Plug, Wrench, Cable, Shield } from "lucide-svelte";
 
 	let catalogDate = $state("...");
 	let catalogCount = $state(0);
 	let searchInput = $state("");
 	let placeholderIndex = $state(0);
+	let engine = $state(null);
+	let suggestions = $state([]);
+	let showSuggestions = $state(false);
 
 	const placeholders = [
 		"Автомат 25А...",
@@ -43,6 +47,7 @@
 			const catalog = await loadCatalog();
 			catalogDate = getCatalogDate();
 			catalogCount = catalog.items.length;
+			engine = createSearchEngine(catalog.items);
 		} catch (e) {
 			catalogDate = "ошибка загрузки";
 		}
@@ -61,8 +66,26 @@
 		return CHAT_KEYWORDS.some(kw => lower.includes(kw));
 	}
 
+	function handleInput() {
+		const val = searchInput.trim();
+		if (engine && val.length >= 2 && !looksLikeTask(val)) {
+			suggestions = engine.suggest(val, 3);
+			showSuggestions = suggestions.length > 0;
+		} else {
+			suggestions = [];
+			showSuggestions = false;
+		}
+	}
+
+	function selectSuggestion(text) {
+		searchInput = text;
+		showSuggestions = false;
+		goto(`${base}/search/?q=${encodeURIComponent(text)}`);
+	}
+
 	function handleSearch(e) {
 		e.preventDefault();
+		showSuggestions = false;
 		const q = searchInput.trim();
 		if (!q) return;
 		if (looksLikeTask(q)) {
@@ -93,6 +116,9 @@
 				bind:value={searchInput}
 				placeholder={placeholders[placeholderIndex]}
 				class="input input-bordered input-lg w-full bg-base-100 shadow-md focus:border-primary focus:shadow-lg transition-all pr-14 text-base"
+				oninput={handleInput}
+				onfocus={handleInput}
+				onblur={() => { setTimeout(() => showSuggestions = false, 200); }}
 			/>
 			{#if searchInput.trim()}
 				<button
@@ -102,6 +128,21 @@
 				>
 					<Search size={20} />
 				</button>
+			{/if}
+
+			{#if showSuggestions && suggestions.length > 0}
+				<div class="absolute top-full left-0 right-0 mt-1 bg-base-100 rounded-xl shadow-lg border border-base-300 z-50 overflow-hidden">
+					{#each suggestions as s}
+						<button
+							type="button"
+							class="w-full text-left px-4 py-3 text-sm hover:bg-base-200 active:bg-base-300 transition-colors flex items-center gap-2 border-b border-base-200 last:border-b-0"
+							onmousedown={() => selectSuggestion(s.suggestion)}
+						>
+							<Search size={14} class="text-base-content/30 shrink-0" />
+							<span>{s.suggestion}</span>
+						</button>
+					{/each}
+				</div>
 			{/if}
 		</div>
 	</form>

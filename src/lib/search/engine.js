@@ -82,12 +82,12 @@ export function createSearchEngine(items) {
 		return results.slice(0, limit);
 	}
 
-	function suggest(query) {
+	function suggest(query, limit = 3) {
 		if (!query || query.trim().length < 2) return [];
 		return miniSearch.autoSuggest(query.trim(), {
 			fuzzy: 0.2,
 			prefix: true
-		}).slice(0, 5);
+		}).slice(0, limit);
 	}
 
 	function getFallback(query, allItems) {

@@ -34,6 +34,28 @@
 	let priceMax = $state("");
 	let showFilters = $state(false);
 
+	// Подсказки
+	let suggestions = $state([]);
+	let showSuggestions = $state(false);
+
+	function handleInput() {
+		const val = inputValue.trim();
+		if (engine && val.length >= 2) {
+			suggestions = engine.suggest(val, 3);
+			showSuggestions = suggestions.length > 0;
+		} else {
+			suggestions = [];
+			showSuggestions = false;
+		}
+	}
+
+	function selectSuggestion(text) {
+		inputValue = text;
+		showSuggestions = false;
+		suggestions = [];
+		goto(`${base}/search/?q=${encodeURIComponent(text)}`);
+	}
+
 	function getFilteredResults() {
 		let filtered = results;
 		const min = Number(priceMin) || 0;
@@ -134,7 +156,10 @@
 					placeholder="Артикул, название или задача..."
 					class="input input-bordered w-full pr-12 min-h-[44px] text-base"
 					bind:value={inputValue}
-					onkeydown={(e) => { if (e.key === "Enter") handleSearch(); }}
+					oninput={handleInput}
+					onkeydown={(e) => { if (e.key === "Enter") { showSuggestions = false; handleSearch(); } }}
+					onfocus={handleInput}
+					onblur={() => { setTimeout(() => showSuggestions = false, 200); }}
 				/>
 				<button
 					class="absolute right-1 top-1/2 -translate-y-1/2 btn btn-ghost btn-circle min-h-[40px] min-w-[40px]"
@@ -143,6 +168,21 @@
 				>
 					<Search size={20} />
 				</button>
+
+				<!-- Подсказки -->
+				{#if showSuggestions && suggestions.length > 0}
+					<div class="absolute top-full left-0 right-0 mt-1 bg-base-100 rounded-xl shadow-lg border border-base-300 z-50 overflow-hidden">
+						{#each suggestions as s}
+							<button
+								class="w-full text-left px-4 py-3 text-sm hover:bg-base-200 active:bg-base-300 transition-colors flex items-center gap-2 border-b border-base-200 last:border-b-0"
+								onmousedown={() => selectSuggestion(s.suggestion)}
+							>
+								<Search size={14} class="text-base-content/30 shrink-0" />
+								<span>{s.suggestion}</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -180,7 +220,7 @@
 					По запросу «<span class="font-semibold">{query || categoryParam}</span>» ничего не найдено
 				</p>
 				{#if fallbackResults.length > 0}
-					<p class="text-sm text-base-content/60 mb-4">Возможно, вы искали:</p>
+					<p class="text-sm text-base-content/60 mb-4">Наверное, вы искали:</p>
 					<div class="flex flex-col gap-3">
 						{#each fallbackResults as product (product.id)}
 							<ProductCard
