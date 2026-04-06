@@ -174,11 +174,16 @@
 					<div class="absolute top-full left-0 right-0 mt-1 bg-base-100 rounded-xl shadow-lg border border-base-300 z-50 overflow-hidden">
 						{#each suggestions as s}
 							<button
-								class="w-full text-left px-4 py-3 text-sm hover:bg-base-200 active:bg-base-300 transition-colors flex items-center gap-2 border-b border-base-200 last:border-b-0"
+								class="w-full text-left px-4 py-3 hover:bg-base-200 active:bg-base-300 transition-colors flex items-center gap-2 border-b border-base-200 last:border-b-0"
 								onmousedown={() => selectSuggestion(s.suggestion)}
 							>
 								<Search size={14} class="text-base-content/30 shrink-0" />
-								<span>{s.suggestion}</span>
+								<div class="min-w-0">
+									<p class="text-sm leading-tight truncate">{s.suggestion}</p>
+									{#if s.article}
+										<p class="text-xs article-code mt-0.5">{s.article}</p>
+									{/if}
+								</div>
 							</button>
 						{/each}
 					</div>

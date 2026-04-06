@@ -41,7 +41,7 @@ export function createSearchEngine(items) {
 		idField: "id",
 		fields: ["articleNorm", "article", "name", "description", "category", "brand"],
 		storeFields: ["id", "article", "name", "category", "subcategory", "brand",
-			"description", "specs", "inStock", "unit"],
+			"description", "specs", "inStock", "unit", "photo", "price", "oldPrice", "quantity"],
 		tokenize: (text) => {
 			return text.toLowerCase().split(/[\s\-_.,;:!?()/]+/).filter(t => t.length > 0);
 		},
@@ -84,19 +84,8 @@ export function createSearchEngine(items) {
 
 	function suggest(query, limit = 3) {
 		if (!query || query.trim().length < 2) return [];
-		const suggestions = miniSearch.autoSuggest(query.trim(), {
-			fuzzy: 0.2,
-			prefix: true
-		}).slice(0, limit);
-
-		// Fallback: если autoSuggest не нашёл (синонимы, опечатки) —
-		// делаем полноценный поиск и показываем названия товаров как подсказки
-		if (suggestions.length === 0) {
-			const results = search(query, limit);
-			return results.map(r => ({ suggestion: r.name, terms: [], score: r.score }));
-		}
-
-		return suggestions;
+		const results = search(query, limit);
+		return results.map(r => ({ suggestion: r.name, article: r.article }));
 	}
 
 	function getFallback(query, allItems) {
