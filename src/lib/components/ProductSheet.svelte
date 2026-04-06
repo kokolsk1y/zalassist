@@ -79,7 +79,7 @@
 					{#if product.inStock}
 						<p class="text-sm text-success flex items-center gap-1.5">
 							<Check size={16} />
-							В наличии{#if product.quantity} — {product.quantity} {product.unit || "шт"}{/if}
+							В наличии {#if product.quantity}— {product.quantity} {product.unit || "шт"}{/if}
 						</p>
 					{:else}
 						<p class="text-sm text-warning">Под заказ</p>

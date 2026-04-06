@@ -70,7 +70,7 @@
 					{:else}
 						<p class="text-[13px] text-success flex items-center gap-1">
 							<Check size={16} />
-							В наличии{#if product.quantity} {product.quantity} {product.unit || "шт"}{/if}
+							В наличии {#if product.quantity}{product.quantity} {product.unit || "шт"}{/if}
 						</p>
 					{/if}
 				{:else}
