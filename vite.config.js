@@ -17,7 +17,7 @@ export default defineConfig({
 				scope: "/zalassist/",
 				display: "standalone",
 				background_color: "#ffffff",
-				theme_color: "#2b7de0",
+				theme_color: "#1E3A6E",
 				lang: "ru",
 				icons: [
 					{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },

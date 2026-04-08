@@ -3,6 +3,7 @@
 	import Toast from "$lib/components/Toast.svelte";
 	import CartPanel from "$lib/components/CartPanel.svelte";
 	import BottomNav from "$lib/components/BottomNav.svelte";
+	import InstallPrompt from "$lib/components/InstallPrompt.svelte";
 	import { useCart } from "$lib/stores/cart.svelte.js";
 	let { children } = $props();
 	let showCart = $state(false);
@@ -21,4 +22,5 @@
 
 <BottomNav oncartclick={() => showCart = true} />
 <CartPanel open={showCart} onclose={() => showCart = false} />
+<InstallPrompt />
 <Toast />
