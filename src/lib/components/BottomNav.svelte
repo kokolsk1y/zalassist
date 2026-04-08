@@ -18,7 +18,7 @@
 	}
 </script>
 
-<nav class="fixed bottom-0 left-0 right-0 bg-primary text-primary-content z-50 flex safe-bottom">
+<nav class="bottom-nav fixed bottom-0 left-0 right-0 bg-primary text-primary-content z-50 flex safe-bottom shadow-lg">
 	{#each tabs as tab}
 		<a
 			href={tab.href}
@@ -46,3 +46,11 @@
 		<span class="text-[11px] mt-0.5">Список</span>
 	</button>
 </nav>
+
+<style>
+	/* В iOS браузере (не PWA) добавляем отступ снизу,
+	   чтобы наш навбар не сливался с панелью Chrome/Safari */
+	:global(html.ios-browser) .bottom-nav {
+		box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.15), 0 -1px 0 rgba(255, 255, 255, 0.1);
+	}
+</style>

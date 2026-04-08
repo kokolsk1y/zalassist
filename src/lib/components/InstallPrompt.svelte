@@ -86,7 +86,7 @@
 </script>
 
 {#if showAndroidPrompt && deferredPrompt}
-	<div class="fixed bottom-20 left-4 right-4 bg-base-100 rounded-xl shadow-2xl border border-base-300 p-4 z-[60] max-w-md mx-auto animate-in-up">
+	<div class="fixed bottom-above-nav left-4 right-4 bg-base-100 rounded-xl shadow-2xl border border-base-300 p-4 z-[60] max-w-md mx-auto animate-in-up">
 		<div class="flex items-start gap-3">
 			<div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
 				<Download size={24} class="text-primary" />
@@ -106,7 +106,7 @@
 {/if}
 
 {#if showIosHint}
-	<div class="fixed bottom-20 left-4 right-4 bg-base-100 rounded-xl shadow-2xl border border-base-300 p-4 z-[60] max-w-md mx-auto animate-in-up">
+	<div class="fixed bottom-above-nav left-4 right-4 bg-base-100 rounded-xl shadow-2xl border border-base-300 p-4 z-[60] max-w-md mx-auto animate-in-up">
 		<div class="flex items-start gap-3">
 			<div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
 				<Share size={24} class="text-primary" />

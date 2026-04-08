@@ -4,7 +4,7 @@
 	import { ArrowLeft, Package } from "lucide-svelte";
 </script>
 
-<div class="min-h-screen bg-base-200 flex flex-col">
+<div class="min-h-[100dvh] bg-base-200 flex flex-col">
 	<div class="sticky top-0 bg-base-100 shadow-sm z-40 px-4 py-3">
 		<div class="flex items-center gap-3 max-w-md mx-auto">
 			<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-sm btn-circle" aria-label="Назад">

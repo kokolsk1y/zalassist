@@ -57,4 +57,51 @@
 	.safe-bottom {
 		padding-bottom: env(safe-area-inset-bottom, 0px);
 	}
+
+	/* Высота нижнего навбара (56px) + safe area */
+	.nav-h {
+		height: calc(56px + env(safe-area-inset-bottom, 0px));
+	}
+
+	/* Отступ для контента чтобы не залезал под BottomNav */
+	.pb-nav {
+		padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+	}
+
+	/* Отступ снизу для плавающих элементов (чтобы поднять над BottomNav) */
+	.bottom-above-nav {
+		bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 12px);
+	}
+}
+
+/* === iOS Chrome / Safari браузерный режим ===
+   Когда PWA НЕ установлен, у iOS браузеров есть нижняя панель.
+   env(safe-area-inset-bottom) её НЕ учитывает, поэтому наш BottomNav
+   может конфликтовать с панелью браузера.
+   В PWA (standalone) — всё ок, оставляем как есть. */
+@media (display-mode: browser) {
+	@supports (-webkit-touch-callout: none) {
+		/* Применяется только для iOS (Safari detection) */
+		.ios-browser-lift {
+			bottom: 0;
+		}
+	}
+}
+
+/* Убираем резиновый скролл iOS за границами контента */
+html, body {
+	overscroll-behavior-y: none;
+}
+
+/* iOS: если font-size input < 16px — браузер делает zoom при фокусе.
+   Минимум 16px для всех полей ввода чтобы избежать нежелательного зума. */
+@supports (-webkit-touch-callout: none) {
+	input[type="text"],
+	input[type="search"],
+	input[type="number"],
+	input[type="email"],
+	input[type="tel"],
+	textarea {
+		font-size: max(16px, 1rem);
+	}
 }
