@@ -12,6 +12,7 @@
 	import ChatMessage from "$lib/components/ChatMessage.svelte";
 	import QuickChips from "$lib/components/QuickChips.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
+	import VoiceInput from "$lib/components/VoiceInput.svelte";
 
 	const INITIAL_CHIPS = [
 		"Нужна помощь с электрикой",
@@ -236,6 +237,9 @@
 			rows="1"
 			disabled={isLoading}
 		></textarea>
+		{#if !inputText.trim()}
+			<VoiceInput onResult={(text) => { inputText = text; }} size={22} />
+		{/if}
 		<button
 			class="btn btn-primary btn-circle"
 			onclick={() => sendMessage(inputText)}

@@ -4,6 +4,7 @@
 	import { onMount } from "svelte";
 	import { loadCatalog, getCatalogDate } from "$lib/data/catalog.js";
 	import { createSearchEngine } from "$lib/search/engine.js";
+	import VoiceInput from "$lib/components/VoiceInput.svelte";
 	import { Search, MessageSquare, Zap, Lightbulb, Plug, Wrench, Cable, Shield } from "lucide-svelte";
 
 	let catalogDate = $state("...");
@@ -94,6 +95,19 @@
 			goto(`${base}/search/?q=${encodeURIComponent(q)}`);
 		}
 	}
+
+	function handleVoice(text) {
+		searchInput = text;
+		handleInput();
+		// Автоматически искать после надиктовки
+		setTimeout(() => {
+			if (looksLikeTask(text)) {
+				goto(`${base}/chat/`, { state: { initialMessage: text } });
+			} else {
+				goto(`${base}/search/?q=${encodeURIComponent(text)}`);
+			}
+		}, 300);
+	}
 </script>
 
 <div class="min-h-[100dvh] bg-base-200 flex flex-col items-center px-4 pt-8 pb-8">
@@ -115,20 +129,23 @@
 				type="text"
 				bind:value={searchInput}
 				placeholder={placeholders[placeholderIndex]}
-				class="input input-bordered input-lg w-full bg-base-100 shadow-md focus:border-primary focus:shadow-lg transition-all pr-14 text-base"
+				class="input input-bordered input-lg w-full bg-base-100 shadow-md focus:border-primary focus:shadow-lg transition-all pr-24 text-base"
 				oninput={handleInput}
 				onfocus={handleInput}
 				onblur={() => { setTimeout(() => showSuggestions = false, 200); }}
 			/>
-			{#if searchInput.trim()}
-				<button
-					type="submit"
-					class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-primary btn-circle min-h-[40px] min-w-[40px]"
-					aria-label="Искать"
-				>
-					<Search size={20} />
-				</button>
-			{/if}
+			<div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+				<VoiceInput onResult={handleVoice} size={22} />
+				{#if searchInput.trim()}
+					<button
+						type="submit"
+						class="btn btn-primary btn-circle min-h-[40px] min-w-[40px]"
+						aria-label="Искать"
+					>
+						<Search size={20} />
+					</button>
+				{/if}
+			</div>
 
 			{#if showSuggestions && suggestions.length > 0}
 				<div class="absolute top-full left-0 right-0 mt-1 bg-base-100 rounded-xl shadow-lg border border-base-300 z-50 overflow-hidden">

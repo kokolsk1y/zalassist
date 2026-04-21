@@ -9,6 +9,7 @@
 	import { toast } from "$lib/stores/toast.svelte.js";
 	import ProductCard from "$lib/components/ProductCard.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
+	import VoiceInput from "$lib/components/VoiceInput.svelte";
 
 	const cart = useCart();
 	let categories = $state([]);
@@ -132,6 +133,14 @@
 		if (q) goto(`${base}/search/?q=${encodeURIComponent(q)}`);
 	}
 
+	function handleVoice(text) {
+		inputValue = text;
+		showSuggestions = false;
+		setTimeout(() => {
+			goto(`${base}/search/?q=${encodeURIComponent(text)}`);
+		}, 200);
+	}
+
 	function addToCart(product) {
 		cart.add(product);
 		toast.show("✓ Добавлено в список");
@@ -154,20 +163,23 @@
 				<input
 					type="text"
 					placeholder="Артикул, название или задача..."
-					class="input input-bordered w-full pr-12 min-h-[44px] text-base"
+					class="input input-bordered w-full pr-20 min-h-[44px] text-base"
 					bind:value={inputValue}
 					oninput={handleInput}
 					onkeydown={(e) => { if (e.key === "Enter") { showSuggestions = false; handleSearch(); } }}
 					onfocus={handleInput}
 					onblur={() => { setTimeout(() => showSuggestions = false, 200); }}
 				/>
-				<button
-					class="absolute right-1 top-1/2 -translate-y-1/2 btn btn-ghost btn-circle min-h-[40px] min-w-[40px]"
-					onclick={handleSearch}
-					aria-label="Искать"
-				>
-					<Search size={20} />
-				</button>
+				<div class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
+					<VoiceInput onResult={handleVoice} size={20} />
+					<button
+						class="btn btn-ghost btn-circle min-h-[40px] min-w-[40px]"
+						onclick={handleSearch}
+						aria-label="Искать"
+					>
+						<Search size={20} />
+					</button>
+				</div>
 
 				<!-- Подсказки -->
 				{#if showSuggestions && suggestions.length > 0}
