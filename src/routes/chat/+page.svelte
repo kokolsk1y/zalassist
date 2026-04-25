@@ -2,13 +2,16 @@
 	import { base } from "$app/paths";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
-	import { ArrowLeft, Send, MessageSquare } from "lucide-svelte";
+	import { ArrowLeft, Send, MessageSquare, Headphones, Square } from "lucide-svelte";
 	import { loadCatalog } from "$lib/data/catalog.js";
 	import { formatCatalogForAI, selectItemsForAI } from "$lib/ai/prompt.js";
 	import { streamChat } from "$lib/ai/client.js";
 	import { extractProducts } from "$lib/ai/parse.js";
+	import { speak, cancelSpeech, isSpeechSupported } from "$lib/ai/speech.js";
+	import { recognizeOnce, isRecognitionSupported } from "$lib/ai/recognize.js";
 	import { createSearchEngine } from "$lib/search/engine.js";
 	import { cartStore, cartAdd, cartRemove } from "$lib/stores/cart.js";
+	import * as haptics from "$lib/utils/haptics.js";
 	import ChatMessage from "$lib/components/ChatMessage.svelte";
 	import QuickChips from "$lib/components/QuickChips.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
@@ -48,6 +51,12 @@
 	let chatContainer;
 	let selectedProduct = $state(null);
 	let aiChips = $state(null);
+
+	// Hands-free режим: ИИ озвучивает ответ → автоматически перезапускает микрофон.
+	let voiceMode = $state(false);
+	let voiceState = $state("idle"); // "idle" | "listening" | "thinking" | "speaking"
+	let voiceSession = null;
+	const voiceSupported = isSpeechSupported() && isRecognitionSupported();
 
 	function getCartIds() { return new Set(cartItems.map(i => i.id)); }
 	function getCanSend() { return inputText.trim().length > 0 && inputText.length <= 1500 && !isLoading; }
@@ -147,6 +156,8 @@
 				abortFn = null;
 				saveChat();
 				scrollToBottom();
+				// Hands-free: озвучить ответ → запустить микрофон
+				if (voiceMode) handleVoiceLoop(cleanText);
 			},
 			onError(errMsg) {
 				messages[aiMsgIndex] = {
@@ -160,6 +171,58 @@
 				abortFn = null;
 				scrollToBottom();
 			},
+		});
+	}
+
+	async function handleVoiceLoop(replyText) {
+		if (!voiceMode) return;
+		voiceState = "speaking";
+		await speak(replyText, { rate: 1.05 });
+		if (!voiceMode) { voiceState = "idle"; return; }
+		// Микрофон запускаем после короткой паузы — иначе TTS «слышит сам себя» на динамиках
+		await new Promise((r) => setTimeout(r, 350));
+		if (!voiceMode) { voiceState = "idle"; return; }
+		voiceState = "listening";
+		haptics.tap();
+		voiceSession = recognizeOnce({
+			onEnd: () => {},
+		});
+		const text = await voiceSession.promise;
+		voiceSession = null;
+		if (!voiceMode) { voiceState = "idle"; return; }
+		if (text && text.trim()) {
+			voiceState = "thinking";
+			sendMessage(text);
+		} else {
+			voiceState = "idle"; // пользователь молчал — ждём ручного действия
+		}
+	}
+
+	function toggleVoiceMode() {
+		if (!voiceSupported) return;
+		haptics.tap();
+		if (voiceMode) {
+			// Выход из режима — глушим всё
+			voiceMode = false;
+			voiceState = "idle";
+			cancelSpeech();
+			voiceSession?.abort();
+			voiceSession = null;
+			return;
+		}
+		voiceMode = true;
+		// Сразу слушаем — пользователь нажал кнопку, ждать нечего
+		voiceState = "listening";
+		voiceSession = recognizeOnce();
+		voiceSession.promise.then((text) => {
+			voiceSession = null;
+			if (!voiceMode) return;
+			if (text && text.trim()) {
+				voiceState = "thinking";
+				sendMessage(text);
+			} else {
+				voiceState = "idle";
+			}
 		});
 	}
 
@@ -187,7 +250,38 @@
 			<ArrowLeft size={22} />
 		</button>
 		<span class="text-lg font-bold ml-2 flex-1">Подбор под задачу</span>
+		{#if voiceSupported}
+			<button
+				class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px] {voiceMode ? 'text-primary' : 'text-base-content/60'}"
+				onclick={toggleVoiceMode}
+				aria-label={voiceMode ? "Выключить голосовой режим" : "Голосовой режим"}
+				title={voiceMode ? "Голосовой режим включён" : "Голосовой режим"}
+			>
+				<Headphones size={22} />
+			</button>
+		{/if}
 	</div>
+
+	{#if voiceMode}
+		<div class="bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center gap-3 text-sm">
+			<span class="relative flex h-3 w-3">
+				<span
+					class="absolute inline-flex h-full w-full rounded-full {voiceState === 'listening' ? 'bg-error animate-ping' : voiceState === 'speaking' ? 'bg-primary animate-pulse' : voiceState === 'thinking' ? 'bg-warning animate-pulse' : 'bg-base-content/30'}"
+				></span>
+				<span class="relative inline-flex h-3 w-3 rounded-full {voiceState === 'listening' ? 'bg-error' : voiceState === 'speaking' ? 'bg-primary' : voiceState === 'thinking' ? 'bg-warning' : 'bg-base-content/30'}"></span>
+			</span>
+			<span class="flex-1 text-base-content/80">
+				{#if voiceState === "listening"}Слушаю — говорите{:else if voiceState === "speaking"}Отвечаю голосом…{:else if voiceState === "thinking"}Подбираю товары…{:else}Голосовой режим — нажмите чтобы говорить{/if}
+			</span>
+			<button
+				class="btn btn-xs btn-circle btn-ghost"
+				onclick={toggleVoiceMode}
+				aria-label="Выключить голосовой режим"
+			>
+				<Square size={14} />
+			</button>
+		</div>
+	{/if}
 
 	<div class="flex-1 overflow-y-auto p-4 space-y-2" bind:this={chatContainer}>
 		{#if messages.length === 0}

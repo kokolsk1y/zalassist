@@ -93,6 +93,25 @@ html, body {
 	overscroll-behavior-y: none;
 }
 
+/* Body как flex-колонка на всю высоту → main растягивается через flex-1,
+   нижний навбар остаётся fixed и не «прыгает» при коллапсе iOS URL-bar.
+   :where() даёт нулевую специфичность чтобы не ломать модалки/др. layouts. */
+body {
+	display: flex;
+	flex-direction: column;
+	min-height: 100dvh;
+	min-height: 100vh; /* fallback */
+}
+
+/* Когда на input/textarea фокус — прячем нижний навбар, чтобы он не
+   перекрывал поле ввода клавиатурой (особенно Android Chrome). */
+body.kb-open .bottom-nav {
+	transform: translateY(110%);
+}
+.bottom-nav {
+	transition: transform 0.2s ease-out;
+}
+
 /* iOS: если font-size input < 16px — браузер делает zoom при фокусе.
    Минимум 16px для всех полей ввода чтобы избежать нежелательного зума. */
 @supports (-webkit-touch-callout: none) {

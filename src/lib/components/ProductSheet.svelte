@@ -1,5 +1,6 @@
 <script>
 	import { ShoppingCart, Check, PackageOpen, X } from "lucide-svelte";
+	import AisleBadge from "./AisleBadge.svelte";
 
 	let { product, onclose, onadd } = $props();
 	let dialog;
@@ -85,6 +86,13 @@
 						<p class="text-sm text-warning">Под заказ</p>
 					{/if}
 				</div>
+
+				<!-- Где найти в зале (если размечено) -->
+				{#if product.aisle || product.displayed === false}
+					<div class="mt-4">
+						<AisleBadge aisle={product.aisle} displayed={product.displayed} />
+					</div>
+				{/if}
 
 				<!-- Бренд + Категория -->
 				<div class="flex flex-wrap gap-2 mt-4">

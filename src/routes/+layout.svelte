@@ -28,6 +28,27 @@
 		if (standalone) {
 			document.documentElement.classList.add("pwa-standalone");
 		}
+
+		// Прячем BottomNav при появлении клавиатуры — иначе он перекрывает
+		// поле ввода на Android Chrome (viewport уменьшается, fixed bottom прилипает к клавиатуре).
+		const onFocusIn = (e) => {
+			const t = e.target;
+			if (t && t.matches && t.matches("input, textarea, [contenteditable=true]")) {
+				document.body.classList.add("kb-open");
+			}
+		};
+		const onFocusOut = (e) => {
+			const t = e.target;
+			if (t && t.matches && t.matches("input, textarea, [contenteditable=true]")) {
+				document.body.classList.remove("kb-open");
+			}
+		};
+		document.addEventListener("focusin", onFocusIn);
+		document.addEventListener("focusout", onFocusOut);
+		return () => {
+			document.removeEventListener("focusin", onFocusIn);
+			document.removeEventListener("focusout", onFocusOut);
+		};
 	});
 </script>
 
@@ -37,11 +58,11 @@
 	<meta name="theme-color" content="#1E3A6E" />
 </svelte:head>
 
-<main class="pb-nav">
+<main class="flex-1 flex flex-col">
 	{@render children()}
 </main>
 
-<BottomNav oncartclick={() => showCart = true} />
+<BottomNav oncartclick={() => showCart = true} cartActive={showCart} />
 <CartPanel open={showCart} onclose={() => showCart = false} />
 <InstallPrompt />
 <Toast />

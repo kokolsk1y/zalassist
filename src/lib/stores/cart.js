@@ -13,10 +13,21 @@ function save(items) {
 	try { localStorage.setItem("zalassist-cart", JSON.stringify(items)); } catch {}
 }
 
+// PWA Badging API — счётчик подбора на иконке приложения (Android Chrome, Edge desktop).
+// На iOS не поддерживается; падать не будет — `?.` обрывает вызов.
+function updateAppBadge(count) {
+	if (typeof navigator === "undefined") return;
+	if (count > 0) navigator.setAppBadge?.(count);
+	else navigator.clearAppBadge?.();
+}
+
 const _store = writable(load());
 
-// Сохраняем в localStorage при каждом изменении
-_store.subscribe(items => save(items));
+// Сохраняем в localStorage и обновляем app badge при каждом изменении
+_store.subscribe(items => {
+	save(items);
+	updateAppBadge(items.length);
+});
 
 export const cartStore = _store;
 

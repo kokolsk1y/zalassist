@@ -152,7 +152,7 @@
 	}
 </script>
 
-<div class="min-h-[100dvh] bg-base-200 flex flex-col">
+<div class="flex-1 flex flex-col pb-nav bg-base-200">
 	<!-- Header -->
 	<div class="sticky top-0 bg-base-100 shadow-sm z-40 px-4 py-3">
 		<div class="flex items-center gap-3 max-w-md mx-auto">

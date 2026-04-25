@@ -1,5 +1,6 @@
 <script>
 	import { Check, Plus, PackageOpen } from "lucide-svelte";
+	import * as haptics from "$lib/utils/haptics.js";
 
 	let { product, onselect, onadd, onremove, inCart = false } = $props();
 
@@ -7,11 +8,13 @@
 
 	function handleAdd(e) {
 		e.stopPropagation();
+		haptics.success();
 		if (onadd) onadd(product);
 	}
 
 	function handleRemove(e) {
 		e.stopPropagation();
+		haptics.tap();
 		if (onremove) onremove(product.id);
 	}
 

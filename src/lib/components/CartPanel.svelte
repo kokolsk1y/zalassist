@@ -1,17 +1,34 @@
 <script>
 	import { useCart } from "$lib/stores/cart.svelte.js";
-	import { copyToClipboard } from "$lib/utils/clipboard.js";
-	import { X, Minus, Plus, Trash2, Copy, Check, Mail, Send } from "lucide-svelte";
+	import { shareText, canNativeShare } from "$lib/utils/share.js";
+	import * as haptics from "$lib/utils/haptics.js";
+	import { X, Minus, Plus, Trash2, Check, Send, Share2 } from "lucide-svelte";
 
 	let { open, onclose } = $props();
-	let copied = $state(false);
+	let shareState = $state(""); // "" | "shared" | "copied"
 	let dialog;
 	const cart = useCart();
+	const hasNativeShare = canNativeShare();
 
 	$effect(() => {
 		if (open && dialog) dialog.showModal();
 		else if (!open && dialog) dialog.close();
 	});
+
+	async function handleShare() {
+		const text = cart.formatText();
+		const result = await shareText({
+			title: "Мой подбор — ЭлектроЦентр",
+			text,
+		});
+		if (result === "shared" || result === "copied") {
+			shareState = result;
+			haptics.success();
+			setTimeout(() => shareState = "", 2000);
+		} else if (result === "error") {
+			haptics.error();
+		}
+	}
 </script>
 
 <dialog bind:this={dialog} class="modal" onclose={onclose}>
@@ -35,16 +52,16 @@
 						</div>
 						<div class="flex items-center gap-1 shrink-0">
 							<button class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]"
-								onclick={() => cart.updateQty(item.id, item.qty - 1)}>
+								onclick={() => { haptics.tap(); cart.updateQty(item.id, item.qty - 1); }}>
 								<Minus size={20} />
 							</button>
 							<span class="w-10 text-center text-lg font-bold">{item.qty}</span>
 							<button class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]"
-								onclick={() => cart.updateQty(item.id, item.qty + 1)}>
+								onclick={() => { haptics.tap(); cart.updateQty(item.id, item.qty + 1); }}>
 								<Plus size={20} />
 							</button>
 							<button class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px] text-error"
-								onclick={() => cart.remove(item.id)}>
+								onclick={() => { haptics.tap(); cart.remove(item.id); }}>
 								<Trash2 size={20} />
 							</button>
 						</div>
@@ -63,40 +80,28 @@
 			{/if}
 
 			<div class="flex flex-col gap-2">
-				<button class="btn btn-primary w-full gap-2"
-					onclick={() => {
-						copyToClipboard(cart.formatText());
-						copied = true;
-						setTimeout(() => copied = false, 2000);
-					}}>
-					{#if copied}
-						<Check size={18} /> Скопировано!
+				<!-- Главная: нативное системное «Поделиться» (WhatsApp/AirDrop/почта/заметки — выбирает клиент) -->
+				<button class="btn btn-primary w-full gap-2 min-h-[48px]"
+					onclick={handleShare}>
+					{#if shareState === "shared"}
+						<Check size={18} /> Отправлено
+					{:else if shareState === "copied"}
+						<Check size={18} /> Скопировано в буфер
 					{:else}
-						<Copy size={18} /> Скопировать список
+						<Share2 size={18} /> {hasNativeShare ? "Поделиться" : "Скопировать список"}
 					{/if}
 				</button>
 
+				<!-- Прямой канал к отделу продаж — запасной вариант, не зависит от выбора клиента -->
 				<a href="https://wa.me/74012555514?text={encodeURIComponent(cart.formatText())}"
-					target="_blank" rel="noopener" class="btn btn-success w-full gap-2 min-h-[44px]">
+					target="_blank" rel="noopener"
+					class="btn btn-success w-full gap-2 min-h-[44px]"
+					onclick={() => haptics.tap()}>
 					<Send size={18} /> Отправить менеджеру
 				</a>
 
-				<div class="flex gap-2">
-					<a href="mailto:sale@stv39.ru?subject=Список товаров ЭлектроЦентр&body={encodeURIComponent(cart.formatText())}"
-						class="btn btn-outline flex-1 gap-1 min-h-[44px]">
-						<Mail size={20} /> Почта
-					</a>
-					<a href="https://wa.me/?text={encodeURIComponent(cart.formatText())}"
-						target="_blank" rel="noopener" class="btn btn-outline flex-1 gap-1 min-h-[44px]">
-						<Send size={20} /> WhatsApp
-					</a>
-					<a href="https://t.me/share/url?text={encodeURIComponent(cart.formatText())}"
-						target="_blank" rel="noopener" class="btn btn-outline flex-1 gap-1 min-h-[44px]">
-						<Send size={20} /> Telegram
-					</a>
-				</div>
-
-				<button class="btn btn-ghost min-h-[44px]" onclick={() => cart.clear()}>
+				<button class="btn btn-ghost min-h-[44px]"
+					onclick={() => { haptics.tap(); cart.clear(); }}>
 					Очистить список
 				</button>
 			</div>

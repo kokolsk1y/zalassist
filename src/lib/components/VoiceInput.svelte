@@ -1,48 +1,38 @@
 <script>
-	import { Mic, MicOff } from "lucide-svelte";
+	import { Mic } from "lucide-svelte";
+	import { recognizeOnce, isRecognitionSupported } from "$lib/ai/recognize.js";
+	import * as haptics from "$lib/utils/haptics.js";
 
 	let { onResult, size = 20, class: cls = "" } = $props();
 
 	let supported = $state(false);
 	let listening = $state(false);
-	let recognition = null;
+	let session = null;
 
 	$effect(() => {
 		if (typeof window !== "undefined") {
-			supported = "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
+			supported = isRecognitionSupported();
 		}
 	});
 
 	function toggle() {
 		if (!supported) return;
-		if (listening) {
-			recognition?.stop();
+		if (listening && session) {
+			session.abort();
+			session = null;
+			listening = false;
 			return;
 		}
-
-		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-		recognition = new SpeechRecognition();
-		recognition.lang = "ru-RU";
-		recognition.interimResults = false;
-		recognition.maxAlternatives = 1;
-		recognition.continuous = false;
-
-		recognition.onstart = () => { listening = true; };
-
-		recognition.onresult = (event) => {
-			const text = event.results[0][0].transcript;
+		haptics.tap();
+		listening = true;
+		session = recognizeOnce({
+			onEnd: () => { listening = false; },
+		});
+		session.promise.then((text) => {
+			session = null;
+			listening = false;
 			if (text) onResult?.(text);
-			listening = false;
-		};
-
-		recognition.onerror = () => { listening = false; };
-		recognition.onend = () => { listening = false; };
-
-		try {
-			recognition.start();
-		} catch {
-			listening = false;
-		}
+		});
 	}
 </script>
 
