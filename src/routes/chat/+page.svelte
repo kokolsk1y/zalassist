@@ -245,7 +245,8 @@
 </script>
 
 <div class="flex flex-col h-[calc(100dvh-56px-env(safe-area-inset-bottom,0px))] bg-base-200">
-	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2">
+	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2"
+		style="padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem)">
 		<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]" aria-label="Назад">
 			<ArrowLeft size={22} />
 		</button>

@@ -72,6 +72,26 @@
 	.bottom-above-nav {
 		bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 12px);
 	}
+
+	/* Верхний отступ под статусбар/notch/Dynamic Island.
+	   Используется на ВСЕХ страницах, чтобы контент не уезжал под чёлку iPhone.
+	   На устройствах без notch inset = 0px → ничего не меняется. */
+	.pt-safe {
+		padding-top: env(safe-area-inset-top, 0px);
+	}
+
+	/* Высота safe-area сверху — для распорки/spacer без padding'а. */
+	.h-safe-top {
+		height: env(safe-area-inset-top, 0px);
+	}
+
+	/* Sticky-шапка с автоматическим отступом под notch.
+	   Применяй вместо `sticky top-0` чтобы шапка не уезжала под Dynamic Island. */
+	.sticky-top-safe {
+		position: sticky;
+		top: 0;
+		padding-top: env(safe-area-inset-top, 0px);
+	}
 }
 
 /* === iOS Chrome / Safari браузерный режим ===

@@ -5,7 +5,8 @@
 </script>
 
 <div class="flex-1 flex flex-col pb-nav bg-base-200">
-	<div class="sticky top-0 bg-base-100 shadow-sm z-40 px-4 py-3">
+	<div class="sticky top-0 bg-base-100 shadow-sm z-40 px-4 py-3"
+		style="padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem)">
 		<div class="flex items-center gap-3 max-w-md mx-auto">
 			<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-sm btn-circle" aria-label="Назад">
 				<ArrowLeft size={20} />

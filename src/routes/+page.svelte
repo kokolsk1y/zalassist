@@ -110,7 +110,8 @@
 	}
 </script>
 
-<div class="flex-1 flex flex-col items-center px-4 pt-8 pb-8 pb-nav bg-base-200">
+<div class="flex-1 flex flex-col items-center px-4 pb-8 pb-nav bg-base-200"
+	style="padding-top: calc(env(safe-area-inset-top, 0px) + 2rem)">
 	<!-- Лого -->
 	<div class="mb-6 text-center">
 		<img src="{base}/logo.png" alt="ЭлектроЦентр" width="443" height="99" class="h-10 w-auto mx-auto mb-2 rounded-lg bg-white px-3 py-1 shadow-sm" />

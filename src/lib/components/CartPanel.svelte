@@ -32,7 +32,8 @@
 </script>
 
 <dialog bind:this={dialog} class="modal" onclose={onclose}>
-	<div class="modal-box w-full max-w-lg h-full max-h-full sm:max-h-[90vh] sm:rounded-2xl">
+	<div class="modal-box w-full max-w-lg h-full max-h-full sm:max-h-[90vh] sm:rounded-2xl"
+		style="padding-top: calc(1.5rem + env(safe-area-inset-top, 0px))">
 		<div class="flex items-center justify-between mb-4">
 			<h2 class="text-xl font-bold">Список для менеджера</h2>
 			<button class="btn btn-ghost btn-sm btn-circle" onclick={onclose}>
