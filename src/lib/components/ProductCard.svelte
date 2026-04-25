@@ -2,9 +2,53 @@
 	import { Check, Plus, PackageOpen } from "lucide-svelte";
 	import * as haptics from "$lib/utils/haptics.js";
 
-	let { product, onselect, onadd, onremove, inCart = false } = $props();
+	let { product, onselect, onadd, onremove, onlongpress, inCart = false } = $props();
 
 	let imgError = $state(false);
+
+	// Long-press: pointerdown держим 500мс без движения → открываем action sheet
+	let pressTimer = null;
+	let pressX = 0;
+	let pressY = 0;
+	let longPressed = false;
+	const LONG_PRESS_MS = 500;
+	const MOVE_THRESHOLD = 8;
+
+	function handlePointerDown(e) {
+		if (!onlongpress) return;
+		longPressed = false;
+		pressX = e.clientX;
+		pressY = e.clientY;
+		pressTimer = setTimeout(() => {
+			longPressed = true;
+			haptics.longPress();
+			onlongpress(product);
+		}, LONG_PRESS_MS);
+	}
+
+	function handlePointerMove(e) {
+		if (!pressTimer) return;
+		if (Math.hypot(e.clientX - pressX, e.clientY - pressY) > MOVE_THRESHOLD) {
+			clearTimeout(pressTimer);
+			pressTimer = null;
+		}
+	}
+
+	function handlePointerUp() {
+		if (pressTimer) {
+			clearTimeout(pressTimer);
+			pressTimer = null;
+		}
+	}
+
+	function handleClick() {
+		if (longPressed) {
+			// Глотаем клик — long-press уже сработал
+			longPressed = false;
+			return;
+		}
+		onselect?.(product);
+	}
 
 	function handleAdd(e) {
 		e.stopPropagation();
@@ -26,9 +70,14 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="flex gap-3 bg-base-100 rounded-xl shadow-sm p-3 cursor-pointer active:scale-[0.98] transition-transform"
-	onclick={() => onselect?.(product)}
+	class="flex gap-3 bg-base-100 rounded-xl shadow-sm p-3 cursor-pointer active:scale-[0.98] transition-transform select-none"
+	onclick={handleClick}
 	onkeydown={(e) => { if (e.key === "Enter") onselect?.(product); }}
+	onpointerdown={handlePointerDown}
+	onpointermove={handlePointerMove}
+	onpointerup={handlePointerUp}
+	onpointercancel={handlePointerUp}
+	oncontextmenu={(e) => { if (onlongpress) e.preventDefault(); }}
 	role="button"
 	tabindex="0"
 >

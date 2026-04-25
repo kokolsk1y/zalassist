@@ -6,7 +6,7 @@
 	import { createSearchEngine } from "$lib/search/engine.js";
 	import VoiceInput from "$lib/components/VoiceInput.svelte";
 	import { Search, MessageSquare, Zap, Lightbulb, Plug, Wrench, Cable, Shield, Phone, MapPin, Clock, PackageOpen } from "lucide-svelte";
-	import { STORE, callPhone, openInMaps } from "$lib/data/store-info.js";
+	import { STORE, callPhone, openInMaps, getStoreStatus } from "$lib/data/store-info.js";
 	import { recentlyViewedStore } from "$lib/stores/history.js";
 	import * as haptics from "$lib/utils/haptics.js";
 	import PullToRefresh from "$lib/components/PullToRefresh.svelte";
@@ -46,6 +46,8 @@
 	}
 
 	let greeting = $state(getGreeting());
+	// Часы работы магазина — обновляем раз в минуту чтобы переход открыто/закрыто отображался живо
+	let storeStatus = $state(getStoreStatus());
 	let recentlyViewed = $state([]);
 	$effect(() => {
 		const unsub = recentlyViewedStore.subscribe(v => { recentlyViewed = v; });
@@ -80,7 +82,12 @@
 		const interval = setInterval(() => {
 			placeholderIndex = (placeholderIndex + 1) % placeholders.length;
 		}, 3000);
-		return () => clearInterval(interval);
+		// Обновление статуса магазина каждую минуту (чтобы при пересечении времени
+		// открытия/закрытия пользователь увидел переход без перезагрузки страницы)
+		const statusTick = setInterval(() => {
+			storeStatus = getStoreStatus();
+		}, 60000);
+		return () => { clearInterval(interval); clearInterval(statusTick); };
 	});
 
 	const CHAT_KEYWORDS = ["хочу", "нужно", "сделать", "помоги", "подобрать", "посоветуй", "как ", "что нужно", "проводка", "ремонт", "установ"];
@@ -137,9 +144,15 @@
 <div class="flex-1 flex flex-col items-center px-4 pb-8 pb-nav bg-base-200"
 	style="padding-top: calc(env(safe-area-inset-top, 0px) + 2rem)">
 	<!-- Лого -->
-	<div class="mb-6 text-center">
+	<div class="mb-3 text-center">
 		<img src="{base}/logo.png" alt="ЭлектроЦентр" width="443" height="99" class="h-10 w-auto mx-auto mb-2 rounded-lg bg-white px-3 py-1 shadow-sm" />
 		<p class="text-sm text-base-content/70">Помощник в торговом зале</p>
+	</div>
+
+	<!-- Живой индикатор: магазин открыт или закрыт сейчас -->
+	<div class="store-status mb-6" class:open={storeStatus.isOpen}>
+		<span class="status-dot"></span>
+		<span>{storeStatus.label}</span>
 	</div>
 
 	<!-- Greeting -->
@@ -302,3 +315,34 @@
 	</p>
 </div>
 </PullToRefresh>
+
+<style>
+	.store-status {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 14px;
+		border-radius: 9999px;
+		background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+		color: var(--color-base-content);
+		font-size: 13px;
+		font-weight: 500;
+	}
+	.store-status.open {
+		background: color-mix(in oklch, var(--color-success) 14%, transparent);
+		color: var(--color-success);
+	}
+	.status-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 9999px;
+		background: currentColor;
+	}
+	.store-status.open .status-dot {
+		animation: pulse-dot 2s ease-in-out infinite;
+	}
+	@keyframes pulse-dot {
+		0%, 100% { box-shadow: 0 0 0 0 currentColor; }
+		50% { box-shadow: 0 0 0 6px color-mix(in oklch, currentColor 0%, transparent); }
+	}
+</style>

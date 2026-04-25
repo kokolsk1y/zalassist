@@ -11,6 +11,7 @@
 	import { X as XIcon, Clock } from "lucide-svelte";
 	import ProductCard from "$lib/components/ProductCard.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
+	import ProductActionSheet from "$lib/components/ProductActionSheet.svelte";
 	import VoiceInput from "$lib/components/VoiceInput.svelte";
 
 	const cart = useCart();
@@ -26,6 +27,7 @@
 	let loading = $state(true);
 	let inputValue = $state("");
 	let selectedProduct = $state(null);
+	let actionProduct = $state(null);
 	let query = $state("");
 	let categoryParam = $state("");
 	let activeCategory = $state("");
@@ -291,6 +293,7 @@
 							<ProductCard
 								{product}
 								onselect={(p) => selectedProduct = p}
+								onlongpress={(p) => actionProduct = p}
 								onadd={addToCart}
 								onremove={removeFromCart}
 								inCart={cart.items.some(i => i.id === product.id)}
@@ -352,6 +355,7 @@
 					<ProductCard
 						{product}
 						onselect={(p) => selectedProduct = p}
+						onlongpress={(p) => actionProduct = p}
 						onadd={addToCart}
 						onremove={removeFromCart}
 						inCart={cart.items.some(i => i.id === product.id)}
@@ -379,4 +383,13 @@
 	product={selectedProduct}
 	onclose={() => selectedProduct = null}
 	onadd={addToCart}
+/>
+
+<ProductActionSheet
+	product={actionProduct}
+	inCart={actionProduct ? cart.items.some(i => i.id === actionProduct.id) : false}
+	onclose={() => actionProduct = null}
+	onadd={addToCart}
+	onremove={removeFromCart}
+	onview={(p) => selectedProduct = p}
 />
