@@ -331,7 +331,7 @@
 	<div class="p-3 bg-base-100 border-t border-base-300 flex gap-2 items-end safe-bottom">
 		<textarea
 			class="textarea textarea-bordered flex-1 min-h-[44px] max-h-[120px] resize-none text-base"
-			placeholder="Опишите задачу или удерживайте микрофон…"
+			placeholder="Сообщение..."
 			bind:value={inputText}
 			onkeydown={handleKeydown}
 			maxlength="1500"
@@ -374,9 +374,9 @@
 
 {#if callOpen}
 	<VoiceCallScreen
-		bind:state={callState}
-		bind:lastReply={callLastReply}
-		bind:lastError={callLastError}
+		externalState={callState}
+		lastReply={callLastReply}
+		lastError={callLastError}
 		onmessage={handleCallMessage}
 		onclose={closeCall}
 	/>

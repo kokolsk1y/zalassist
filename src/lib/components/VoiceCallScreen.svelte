@@ -7,32 +7,29 @@
 	import { cancelSpeech } from "$lib/ai/speech.js";
 
 	// Hands-free «звонок» в стиле Яндекс Алисы.
-	// Большой круг на весь экран, состояния:
-	//   - listening — слушаем пользователя (красный пульс)
-	//   - thinking  — ИИ обрабатывает (жёлтый)
-	//   - speaking  — ИИ говорит (синий с волной)
-	//   - paused    — пауза от пользователя
-	//   - error     — что-то пошло не так
-	//
-	// Колбэки:
-	//   - onmessage(text) — пользователь сказал, отправляем в чат
-	//   - onclose()       — закрытие звонка (выход из режима)
-	//   - onpause()/onresume() — пауза/продолжить
-	//
-	// Внешнее управление через bind:state:
-	//   - state: "idle" | "listening" | "thinking" | "speaking" | "paused" | "error"
-	//   - lastReply: string — последняя реплика ИИ (показываем на экране)
+	// Полностью самостоятельный — родитель не управляет состоянием recognition.
+	// Состояние извне приходит через `externalState` (например, "speaking" когда ИИ говорит).
+	// Слияние: если родитель = "speaking" → показываем speaking. Иначе — внутреннее.
 
-	let { onmessage, onclose, state = $bindable("idle"), lastReply = "", lastError = "" } = $props();
+	let {
+		externalState = "idle", // "idle" | "thinking" | "speaking" | "error"
+		lastReply = "",
+		lastError = "",
+		onmessage,
+		onclose,
+	} = $props();
 
-	let userPartial = $state(""); // promежуточный распознанный текст
+	let internalState = $state("idle"); // "idle" | "listening" | "paused"
+	let userPartial = $state("");
 	let recognitionSession = null;
 	let stopWake = null;
 	let manualPause = $state(false);
+	let busyExternally = $derived(externalState === "thinking" || externalState === "speaking" || externalState === "error");
+	let displayState = $derived(busyExternally ? externalState : internalState);
 
 	onMount(() => {
 		stopWake = keepScreenAwake();
-		// Сразу начинаем слушать — пользователь нажал на наушники, ждать нечего
+		// Стартуем сразу — пользователь нажал «Голос», ждать нечего
 		startListening();
 	});
 
@@ -42,56 +39,62 @@
 		cancelSpeech();
 	});
 
+	// Когда внешнее состояние возвращается в "idle" (ИИ закончил говорить) —
+	// автоматически возобновляем listening.
+	$effect(() => {
+		if (externalState === "idle" && !manualPause && internalState !== "listening") {
+			setTimeout(() => {
+				if (externalState === "idle" && !manualPause && internalState !== "listening") {
+					startListening();
+				}
+			}, 400);
+		}
+	});
+
 	function startListening() {
-		if (manualPause) return;
-		state = "listening";
+		if (manualPause || busyExternally) return;
+		// Если уже слушаем — не запускаем второй recognition
+		if (recognitionSession) return;
+		internalState = "listening";
 		userPartial = "";
 		recognitionSession = recognizeOnce({
 			onError: (err) => {
 				if (err === "not-allowed") {
-					state = "error";
-					lastError = "Доступ к микрофону запрещён. Разрешите в настройках.";
+					internalState = "error";
 				}
 			},
 		});
 		recognitionSession.promise.then((text) => {
 			recognitionSession = null;
-			if (manualPause || state === "paused") return;
+			if (manualPause) return;
 			if (text && text.trim()) {
 				userPartial = text;
-				state = "thinking";
+				// Передаём текст наверх — родитель установит externalState="thinking"
 				onmessage?.(text.trim());
-			} else if (state === "listening") {
-				// Тишина — слушаем ещё раз через секунду
+			} else if (internalState === "listening") {
+				// Тишина — слушаем ещё раз через секунду (если не на паузе и не занято)
 				setTimeout(() => {
-					if (!manualPause && state === "listening") startListening();
+					if (!manualPause && !busyExternally && internalState === "listening") {
+						internalState = "idle";
+						startListening();
+					}
 				}, 800);
 			}
 		});
 	}
 
-	// Когда внешний родитель меняет state (после ответа ИИ → "speaking" → "idle")
-	// автоматически возобновляем listening
-	$effect(() => {
-		if (state === "idle" && !manualPause) {
-			// ИИ закончил говорить — слушаем дальше
-			setTimeout(() => {
-				if (state === "idle" && !manualPause) startListening();
-			}, 400);
-		}
-	});
-
 	function togglePause() {
 		haptics.tap();
 		if (manualPause) {
 			manualPause = false;
+			internalState = "idle";
 			startListening();
 		} else {
 			manualPause = true;
 			recognitionSession?.abort();
 			recognitionSession = null;
 			cancelSpeech();
-			state = "paused";
+			internalState = "paused";
 		}
 	}
 
@@ -103,13 +106,12 @@
 		onclose?.();
 	}
 
-	// Подписи под кругом для разных состояний
 	let stateLabel = $derived(
-		state === "listening" ? "Слушаю…" :
-		state === "thinking" ? "Думаю…" :
-		state === "speaking" ? "Отвечаю" :
-		state === "paused" ? "На паузе" :
-		state === "error" ? "Ошибка" :
+		displayState === "listening" ? "Слушаю…" :
+		displayState === "thinking" ? "Думаю…" :
+		displayState === "speaking" ? "Отвечаю" :
+		displayState === "paused" ? "На паузе" :
+		displayState === "error" ? "Ошибка" :
 		"Готов слушать"
 	);
 </script>
@@ -122,14 +124,13 @@
 	</div>
 
 	<div class="vc-center">
-		<!-- Большой круг — главный визуал, как у Алисы -->
 		<div class="vc-blob-wrap">
-			<div class="vc-blob {state}" aria-hidden="true">
+			<div class="vc-blob {displayState}" aria-hidden="true">
 				<div class="vc-ring r1"></div>
 				<div class="vc-ring r2"></div>
 				<div class="vc-ring r3"></div>
 				<div class="vc-core">
-					{#if state === "paused"}
+					{#if displayState === "paused"}
 						<Pause size={48} />
 					{:else}
 						<Mic size={48} />
@@ -140,18 +141,16 @@
 
 		<p class="vc-state-label">{stateLabel}</p>
 
-		<!-- Промежуточный текст пользователя (как Алиса показывает что распознала) -->
-		{#if state === "listening" && userPartial}
+		{#if displayState === "listening" && userPartial}
 			<p class="vc-user-text">«{userPartial}»</p>
 		{/if}
 
-		<!-- Последняя реплика ИИ (когда speaking — сопровождает голос текстом) -->
-		{#if state === "speaking" && lastReply}
+		{#if displayState === "speaking" && lastReply}
 			<p class="vc-ai-text">{lastReply}</p>
 		{/if}
 
-		{#if state === "error"}
-			<p class="vc-error-text">{lastError || "Что-то пошло не так. Попробуйте ещё раз."}</p>
+		{#if displayState === "error"}
+			<p class="vc-error-text">{lastError || "Не получается распознать речь. Проверьте разрешение микрофона."}</p>
 		{/if}
 	</div>
 
@@ -169,7 +168,7 @@
 			{/if}
 		</button>
 		<p class="vc-hint">
-			{#if manualPause}Нажмите чтобы продолжить{:else}Скажите вслух или нажмите паузу{/if}
+			{#if manualPause}Нажмите чтобы продолжить{:else if displayState === "speaking"}Можно перебить голосом{:else}Скажите вслух или нажмите паузу{/if}
 		</p>
 	</div>
 </div>
@@ -178,13 +177,18 @@
 	.vc-root {
 		position: fixed;
 		inset: 0;
-		z-index: 200;
+		z-index: 9999;
 		background: linear-gradient(180deg, #0F1F3F 0%, #1E3A6E 100%);
 		color: white;
 		display: flex;
 		flex-direction: column;
 		padding-top: env(safe-area-inset-top, 0px);
 		padding-bottom: env(safe-area-inset-bottom, 0px);
+		animation: fade-in 0.2s ease-out;
+	}
+	@keyframes fade-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
 	}
 
 	.vc-top {
@@ -203,7 +207,6 @@
 		color: white;
 		border: none;
 		cursor: pointer;
-		transition: background 0.15s ease;
 	}
 	.vc-icon-btn:active { background: rgba(255, 255, 255, 0.22); }
 
@@ -217,7 +220,6 @@
 		gap: 24px;
 	}
 
-	/* Главный круг с тремя пульсирующими кольцами */
 	.vc-blob-wrap {
 		position: relative;
 		width: 200px;
@@ -226,11 +228,7 @@
 		align-items: center;
 		justify-content: center;
 	}
-	.vc-blob {
-		position: relative;
-		width: 100%;
-		height: 100%;
-	}
+	.vc-blob { position: relative; width: 100%; height: 100%; }
 	.vc-ring {
 		position: absolute;
 		inset: 0;
@@ -250,7 +248,6 @@
 		transition: background 0.3s ease, color 0.3s ease;
 	}
 
-	/* Состояние LISTENING — красный пульс, кольца расходятся быстро */
 	.vc-blob.listening .vc-core { background: #FF453A; color: white; }
 	.vc-blob.listening .vc-ring {
 		background: rgba(255, 69, 58, 0.35);
@@ -259,17 +256,12 @@
 	.vc-blob.listening .r2 { animation-delay: 0.45s; }
 	.vc-blob.listening .r3 { animation-delay: 0.9s; }
 
-	/* THINKING — жёлтое медленное мерцание */
 	.vc-blob.thinking .vc-core {
 		background: #FFCC00; color: #1E3A6E;
 		animation: pulse-soft 1.6s ease-in-out infinite;
 	}
 
-	/* SPEAKING — синие волны (как у Алисы при ответе) */
-	.vc-blob.speaking .vc-core {
-		background: rgba(255, 255, 255, 0.95);
-		color: #1E3A6E;
-	}
+	.vc-blob.speaking .vc-core { background: rgba(255, 255, 255, 0.95); color: #1E3A6E; }
 	.vc-blob.speaking .vc-ring {
 		background: rgba(255, 255, 255, 0.18);
 		animation: ripple 2s ease-out infinite;
@@ -277,8 +269,9 @@
 	.vc-blob.speaking .r2 { animation-delay: 0.6s; }
 	.vc-blob.speaking .r3 { animation-delay: 1.2s; }
 
-	/* PAUSED — серый, статичный */
-	.vc-blob.paused .vc-core { background: rgba(255, 255, 255, 0.4); color: white; }
+	.vc-blob.paused .vc-core,
+	.vc-blob.idle .vc-core,
+	.vc-blob.error .vc-core { background: rgba(255, 255, 255, 0.4); color: white; }
 
 	@keyframes ripple {
 		0%   { transform: scale(0.8); opacity: 0.7; }
@@ -292,7 +285,6 @@
 	.vc-state-label {
 		font-size: 22px;
 		font-weight: 600;
-		letter-spacing: 0.01em;
 		margin: 0;
 		text-align: center;
 	}
@@ -352,5 +344,6 @@
 		font-size: 13px;
 		opacity: 0.7;
 		margin: 0;
+		text-align: center;
 	}
 </style>
