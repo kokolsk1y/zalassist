@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from "svelte";
 	import { X, Zap, ZapOff } from "lucide-svelte";
 	import * as haptics from "$lib/utils/haptics.js";
+	import { keepScreenAwake } from "$lib/utils/wake-lock.js";
 
 	// Гибридный сканер: нативный BarcodeDetector API (Chrome Android, Edge),
 	// fallback @zxing/library (iOS Safari и старые браузеры). zxing импортируется
@@ -18,10 +19,13 @@
 	let zxingReader = null;
 	let nativeDetector = null;
 	let rafId = null;
+	let stopWake = null;
 
 	const FORMATS = ["ean_13", "ean_8", "code_128", "code_39", "qr_code", "upc_a", "upc_e", "itf"];
 
 	onMount(async () => {
+		// Сканер открыт — экран не гаснет (клиент может долго целиться)
+		stopWake = keepScreenAwake();
 		try {
 			stream = await navigator.mediaDevices.getUserMedia({
 				video: {
@@ -104,6 +108,7 @@
 		if (rafId) cancelAnimationFrame(rafId);
 		try { zxingReader?.reset?.(); } catch {}
 		if (stream) stream.getTracks().forEach(t => t.stop());
+		stopWake?.();
 	});
 </script>
 

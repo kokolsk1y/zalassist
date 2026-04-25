@@ -1,6 +1,8 @@
 <script>
 	import { ShoppingCart, Check, PackageOpen, X } from "lucide-svelte";
 	import AisleBadge from "./AisleBadge.svelte";
+	import { requestWakeLock, releaseWakeLock } from "$lib/utils/wake-lock.js";
+	import { addRecentlyViewed } from "$lib/stores/history.js";
 
 	let { product, onclose, onadd } = $props();
 	let dialog;
@@ -11,8 +13,13 @@
 		if (product && dialog) {
 			imgError = false;
 			dialog.showModal();
+			// Карточка открыта — клиент может пойти к консультанту, экран не гаснет
+			requestWakeLock();
+			// Запоминаем что клиент смотрел этот товар — покажем на главной
+			addRecentlyViewed(product);
 		} else if (!product && dialog) {
 			dialog.close();
+			releaseWakeLock();
 		}
 	});
 

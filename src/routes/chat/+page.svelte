@@ -9,6 +9,7 @@
 	import { extractProducts } from "$lib/ai/parse.js";
 	import { speak, cancelSpeech, isSpeechSupported } from "$lib/ai/speech.js";
 	import { recognizeOnce, isRecognitionSupported } from "$lib/ai/recognize.js";
+	import { requestWakeLock, releaseWakeLock } from "$lib/utils/wake-lock.js";
 	import { createSearchEngine } from "$lib/search/engine.js";
 	import { cartStore, cartAdd, cartRemove } from "$lib/stores/cart.js";
 	import * as haptics from "$lib/utils/haptics.js";
@@ -208,9 +209,12 @@
 			cancelSpeech();
 			voiceSession?.abort();
 			voiceSession = null;
+			releaseWakeLock();
 			return;
 		}
 		voiceMode = true;
+		// В голосовом режиме экран не гаснет — диалог может длиться минуты
+		requestWakeLock();
 		// Сразу слушаем — пользователь нажал кнопку, ждать нечего
 		voiceState = "listening";
 		voiceSession = recognizeOnce();

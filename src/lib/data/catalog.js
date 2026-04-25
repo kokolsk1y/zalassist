@@ -2,10 +2,12 @@ import { base } from "$app/paths";
 
 let catalogCache = null;
 
-export async function loadCatalog() {
-	if (catalogCache) return catalogCache;
+export async function loadCatalog({ force = false } = {}) {
+	if (catalogCache && !force) return catalogCache;
 
-	const response = await fetch(base + "/catalog.json");
+	// При force=true (pull-to-refresh) добавляем cache-buster чтобы обойти SW StaleWhileRevalidate
+	const url = base + "/catalog.json" + (force ? `?t=${Date.now()}` : "");
+	const response = await fetch(url, force ? { cache: "no-cache" } : {});
 	if (!response.ok) throw new Error("Failed to load catalog");
 
 	catalogCache = await response.json();

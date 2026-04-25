@@ -5,7 +5,11 @@
 	import { loadCatalog, getCatalogDate } from "$lib/data/catalog.js";
 	import { createSearchEngine } from "$lib/search/engine.js";
 	import VoiceInput from "$lib/components/VoiceInput.svelte";
-	import { Search, MessageSquare, Zap, Lightbulb, Plug, Wrench, Cable, Shield } from "lucide-svelte";
+	import { Search, MessageSquare, Zap, Lightbulb, Plug, Wrench, Cable, Shield, Phone, MapPin, Clock, PackageOpen } from "lucide-svelte";
+	import { STORE, callPhone, openInMaps } from "$lib/data/store-info.js";
+	import { recentlyViewedStore } from "$lib/stores/history.js";
+	import * as haptics from "$lib/utils/haptics.js";
+	import PullToRefresh from "$lib/components/PullToRefresh.svelte";
 
 	let catalogDate = $state("...");
 	let catalogCount = $state(0);
@@ -42,6 +46,25 @@
 	}
 
 	let greeting = $state(getGreeting());
+	let recentlyViewed = $state([]);
+	$effect(() => {
+		const unsub = recentlyViewedStore.subscribe(v => { recentlyViewed = v; });
+		return unsub;
+	});
+
+	function openRecent(p) {
+		haptics.tap();
+		goto(`${base}/search/?q=${encodeURIComponent(p.article)}`);
+	}
+
+	async function refresh() {
+		try {
+			const catalog = await loadCatalog({ force: true });
+			catalogDate = getCatalogDate();
+			catalogCount = catalog.items.length;
+			engine = createSearchEngine(catalog.items);
+		} catch {}
+	}
 
 	onMount(async () => {
 		try {
@@ -110,6 +133,7 @@
 	}
 </script>
 
+<PullToRefresh onrefresh={refresh}>
 <div class="flex-1 flex flex-col items-center px-4 pb-8 pb-nav bg-base-200"
 	style="padding-top: calc(env(safe-area-inset-top, 0px) + 2rem)">
 	<!-- Лого -->
@@ -127,7 +151,13 @@
 	<form onsubmit={handleSearch} class="w-full max-w-md mb-6">
 		<div class="relative">
 			<input
-				type="text"
+				type="search"
+				inputmode="search"
+				enterkeyhint="search"
+				autocomplete="off"
+				autocorrect="off"
+				autocapitalize="off"
+				spellcheck="false"
 				bind:value={searchInput}
 				placeholder={placeholders[placeholderIndex]}
 				class="input input-bordered input-lg w-full bg-base-100 shadow-md focus:border-primary focus:shadow-lg transition-all pr-24 text-base"
@@ -185,15 +215,45 @@
 
 	<button
 		onclick={() => goto(`${base}/search/`)}
-		class="w-full max-w-md btn btn-ghost text-primary mb-6 min-h-[44px]"
+		class="w-full max-w-md btn btn-ghost text-primary mb-4 min-h-[44px]"
 	>
 		Все категории →
 	</button>
 
+	<!-- Недавно просмотренные товары — горизонтальная лента -->
+	{#if recentlyViewed.length > 0}
+		<div class="w-full max-w-md mb-6">
+			<h3 class="text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-1.5 px-1">
+				<Clock size={14} /> Вы смотрели
+			</h3>
+			<div class="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory">
+				{#each recentlyViewed as p (p.id)}
+					<button
+						onclick={() => openRecent(p)}
+						class="flex-none w-32 bg-base-100 rounded-xl shadow-sm p-2 active:scale-[0.97] transition-transform snap-start text-left"
+					>
+						<div class="w-full aspect-square rounded-lg bg-base-200 flex items-center justify-center mb-1.5 overflow-hidden">
+							{#if p.photo}
+								<img src={p.photo} alt={p.name} class="w-full h-full object-contain" loading="lazy" />
+							{:else}
+								<PackageOpen size={28} class="text-base-content/20" />
+							{/if}
+						</div>
+						<p class="text-[11px] article-code truncate">{p.article}</p>
+						<p class="text-xs leading-tight line-clamp-2 mt-0.5 font-medium">{p.name}</p>
+						{#if p.price}
+							<p class="text-sm font-bold mt-1">{p.price.toLocaleString("ru-RU")} ₽</p>
+						{/if}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
 	<!-- AI блок -->
 	<button
 		onclick={() => goto(`${base}/chat/`)}
-		class="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform mb-6"
+		class="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform mb-3"
 	>
 		<img src="{base}/ai-avatar.png" alt="AI" class="w-12 h-12 rounded-full bg-white p-1 shadow-sm" />
 		<div class="text-left">
@@ -202,6 +262,38 @@
 		</div>
 	</button>
 
+	<!-- Связь с магазином: позвонить + маршрут одним тапом -->
+	<div class="w-full max-w-md grid grid-cols-2 gap-3 mb-6">
+		<a
+			href={callPhone()}
+			onclick={() => haptics.tap()}
+			class="bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform p-3 flex items-center gap-3"
+		>
+			<div class="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center text-success shrink-0">
+				<Phone size={20} />
+			</div>
+			<div class="text-left min-w-0">
+				<p class="text-xs text-base-content/60 leading-none mb-1">Позвонить</p>
+				<p class="text-sm font-semibold leading-tight truncate">{STORE.phoneDisplay}</p>
+			</div>
+		</a>
+		<a
+			href={openInMaps()}
+			target="_blank"
+			rel="noopener"
+			onclick={() => haptics.tap()}
+			class="bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform p-3 flex items-center gap-3"
+		>
+			<div class="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center text-primary shrink-0">
+				<MapPin size={20} />
+			</div>
+			<div class="text-left min-w-0">
+				<p class="text-xs text-base-content/60 leading-none mb-1">Маршрут</p>
+				<p class="text-sm font-semibold leading-tight truncate">До магазина</p>
+			</div>
+		</a>
+	</div>
+
 	<!-- Статус каталога -->
 	<p class="text-xs text-base-content/50 mt-auto pt-4 flex items-center gap-1.5">
 		<span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
@@ -209,3 +301,4 @@
 		{#if catalogDate !== "..."} · обновлено {catalogDate}{/if}
 	</p>
 </div>
+</PullToRefresh>

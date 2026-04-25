@@ -144,3 +144,25 @@ body.kb-open .bottom-nav {
 		font-size: max(16px, 1rem);
 	}
 }
+
+/* === A11y: уважение к пользовательским настройкам системы === */
+
+/* Пользователь попросил «меньше движения» (iOS Settings → Accessibility →
+   Reduce Motion / Android — соответствующий параметр) — глушим декоративные
+   анимации, оставляем только функциональные переходы. Помогает при
+   вестибулярных нарушениях и эпилепсии. */
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* Высокий контраст — увеличиваем границы и читаемость */
+@media (prefers-contrast: more) {
+	.aisle-badge, .badge {
+		border-width: 2px !important;
+	}
+}

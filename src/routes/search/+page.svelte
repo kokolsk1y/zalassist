@@ -7,6 +7,8 @@
 	import { createSearchEngine } from "$lib/search/engine.js";
 	import { useCart } from "$lib/stores/cart.svelte.js";
 	import { toast } from "$lib/stores/toast.svelte.js";
+	import { addSearchHistory, searchHistoryStore, removeSearchHistory } from "$lib/stores/history.js";
+	import { X as XIcon, Clock } from "lucide-svelte";
 	import ProductCard from "$lib/components/ProductCard.svelte";
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
 	import VoiceInput from "$lib/components/VoiceInput.svelte";
@@ -130,7 +132,22 @@
 
 	function handleSearch() {
 		const q = inputValue.trim();
-		if (q) goto(`${base}/search/?q=${encodeURIComponent(q)}`);
+		if (q) {
+			addSearchHistory(q);
+			goto(`${base}/search/?q=${encodeURIComponent(q)}`);
+		}
+	}
+
+	let searchHistory = $state([]);
+	$effect(() => {
+		const unsub = searchHistoryStore.subscribe((v) => { searchHistory = v; });
+		return unsub;
+	});
+
+	function applyHistoryQuery(q) {
+		inputValue = q;
+		addSearchHistory(q);
+		goto(`${base}/search/?q=${encodeURIComponent(q)}`);
 	}
 
 	function handleVoice(text) {
@@ -162,7 +179,13 @@
 			</button>
 			<div class="flex-1 relative">
 				<input
-					type="text"
+					type="search"
+					inputmode="search"
+					enterkeyhint="search"
+					autocomplete="off"
+					autocorrect="off"
+					autocapitalize="off"
+					spellcheck="false"
 					placeholder="Артикул, название или задача..."
 					class="input input-bordered w-full pr-20 min-h-[44px] text-base"
 					bind:value={inputValue}
@@ -220,6 +243,30 @@
 				{/each}
 			</div>
 		{:else if !query && !activeCategory}
+			{#if searchHistory.length > 0}
+				<h2 class="text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-1.5">
+					<Clock size={14} /> Вы недавно искали
+				</h2>
+				<div class="flex flex-col gap-1 mb-6">
+					{#each searchHistory as q (q)}
+						<div class="flex items-center bg-base-100 rounded-lg shadow-sm">
+							<button
+								class="flex-1 text-left px-3 py-2.5 text-sm hover:bg-base-200 rounded-l-lg min-h-[44px]"
+								onclick={() => applyHistoryQuery(q)}
+							>
+								{q}
+							</button>
+							<button
+								class="px-3 py-2.5 text-base-content/40 hover:text-error min-h-[44px]"
+								onclick={() => removeSearchHistory(q)}
+								aria-label="Убрать из истории"
+							>
+								<XIcon size={16} />
+							</button>
+						</div>
+					{/each}
+				</div>
+			{/if}
 			<h2 class="text-lg font-bold text-base-content mb-4">Выберите категорию</h2>
 			<div class="flex flex-wrap gap-2">
 				{#each categories as cat}
