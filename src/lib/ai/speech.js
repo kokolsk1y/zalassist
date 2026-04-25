@@ -25,30 +25,50 @@ function ensureVoices() {
 
 // Очистка текста перед озвучиванием — markdown, артикулы, маркеры,
 // чтобы ИИ не зачитывал «звёздочка звёздочка» и не диктовал ABC-12345.
-export function sanitizeForSpeech(raw) {
+// maxLength: 0 = не обрезать (по умолчанию режем до 280 — в стиле Алисы).
+export function sanitizeForSpeech(raw, { maxLength = 280 } = {}) {
 	if (!raw) return "";
 	let t = String(raw);
 	// Маркеры [CHIPS: ...], [TAGS: ...] и любые квадратные блоки
 	t = t.replace(/\[CHIPS:[^\]]*\]/gi, "");
 	t = t.replace(/\[TAGS:[^\]]*\]/gi, "");
+	// Артикулы целиком вырезаем — не «артикул-артикул-артикул» в речи,
+	// а просто исключаем («модель», «вариант» — не зачитываем код)
+	t = t.replace(/\b[A-ZА-Я]{2,}[-–]\d+[A-ZА-Я0-9-]*/g, "");
+	// Цены вида "1840 ₽" / "1 840₽" — оставляем как есть, синтез прочитает
 	// Markdown
 	t = t.replace(/\*\*(.+?)\*\*/g, "$1");
 	t = t.replace(/\*(.+?)\*/g, "$1");
 	t = t.replace(/`([^`]+)`/g, "$1");
 	t = t.replace(/^#+\s+/gm, "");
-	// Артикулы (пример: AWS-1234, АВ-2.5, ВВГнг 3х2.5) — пропускаем буквенно-цифровые с дефисами
-	t = t.replace(/\b[A-ZА-Я]{2,}[-–]\d+[A-ZА-Я0-9-]*/g, "артикул");
-	// Маркированные списки
+	// Маркированные списки → перечисление через запятую
 	t = t.replace(/^[\-•*]\s+/gm, "");
 	// Двойные пробелы и переводы строк
 	t = t.replace(/\s+\n/g, "\n").replace(/\n{2,}/g, ". ").replace(/\s{2,}/g, " ");
-	// Обрезаем до ~600 символов — длиннее в голосовом диалоге не читаем
-	if (t.length > 600) {
-		const cut = t.slice(0, 600);
+	// Лишние знаки препинания после удалений
+	t = t.replace(/\s+([.,;:!?])/g, "$1").replace(/\s*,\s*,+/g, ",");
+	if (maxLength > 0 && t.length > maxLength) {
+		const cut = t.slice(0, maxLength);
 		const lastDot = cut.lastIndexOf(".");
-		t = (lastDot > 200 ? cut.slice(0, lastDot + 1) : cut + "…");
+		t = (lastDot > 80 ? cut.slice(0, lastDot + 1) : cut + "…");
 	}
 	return t.trim();
+}
+
+// Разбить текст на предложения для последовательной озвучки.
+// Аккуратно с сокращениями (т.е., и т.д., и т.п.) — после них не делим.
+function splitSentences(text) {
+	if (!text) return [];
+	// Защищаем сокращения временно меняя точку
+	const protected_ = text
+		.replace(/\bт\.\s?е\./g, "т·е·")
+		.replace(/\bт\.\s?д\./g, "т·д·")
+		.replace(/\bт\.\s?п\./g, "т·п·")
+		.replace(/\bт\.\s?к\./g, "т·к·");
+	const parts = protected_.split(/(?<=[.!?…])\s+/);
+	return parts
+		.map((s) => s.replace(/·/g, ".").trim())
+		.filter(Boolean);
 }
 
 // Озвучить текст. Возвращает Promise который резолвится по окончании
@@ -84,7 +104,7 @@ export function speak(text, { onStart, onEnd, rate = 1.05, pitch = 1, volume = 1
 	});
 }
 
-// Прервать любое текущее озвучивание (кнопка стоп).
+// Прервать любое текущее озвучивание (кнопка стоп / barge-in).
 export function cancelSpeech() {
 	if (typeof window !== "undefined" && window.speechSynthesis) {
 		window.speechSynthesis.cancel();
@@ -93,4 +113,45 @@ export function cancelSpeech() {
 
 export function isSpeechSupported() {
 	return typeof window !== "undefined" && !!window.speechSynthesis;
+}
+
+// Озвучить текст по предложениям — для синхронизации с UI/прерыванием.
+// onSentenceStart(sentence) — вызывается перед каждым произнесённым куском.
+// Возвращает Promise<"done"|"cancelled"|"empty"|"unsupported">.
+export function speakSentences(text, { onSentenceStart, rate = 1.05, maxLength = 280 } = {}) {
+	return new Promise(async (resolve) => {
+		if (!isSpeechSupported()) { resolve("unsupported"); return; }
+		const clean = sanitizeForSpeech(text, { maxLength });
+		if (!clean) { resolve("empty"); return; }
+		const sentences = splitSentences(clean);
+		if (sentences.length === 0) { resolve("empty"); return; }
+
+		ensureVoices();
+		cancelSpeech();
+
+		let cancelled = false;
+		// Если в течение озвучки вызвали cancelSpeech() — прерываемся
+		const watchCancel = setInterval(() => {
+			if (typeof window !== "undefined" && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+				// если кто-то вызвал cancelSpeech() извне — speaking=false и нет очереди
+			}
+		}, 200);
+
+		for (const sentence of sentences) {
+			if (cancelled) break;
+			onSentenceStart?.(sentence);
+			const result = await new Promise((r) => {
+				const utter = new SpeechSynthesisUtterance(sentence);
+				utter.lang = "ru-RU";
+				utter.rate = rate;
+				if (_ruVoice) utter.voice = _ruVoice;
+				utter.onend = () => r("ok");
+				utter.onerror = () => r("err");
+				window.speechSynthesis.speak(utter);
+			});
+			if (result !== "ok") { cancelled = true; break; }
+		}
+		clearInterval(watchCancel);
+		resolve(cancelled ? "cancelled" : "done");
+	});
 }
