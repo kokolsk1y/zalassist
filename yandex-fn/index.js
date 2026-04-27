@@ -150,28 +150,18 @@ module.exports.handler = async function (event, context) {
         { role: "user", content: message.trim() },
     ];
 
-    // Fallback-цепочка моделей. OpenRouter `route: "fallback"` —
-    // если модель ошибается / таймаутит / rate-limited, автоматически пробует
-    // следующую. Принцип цепочки: «дешёвая+быстрая → надёжная даже если дороже».
+    // Fallback-цепочка моделей. OpenRouter принимает массив `models` до 3 шт:
+    // если первая ошибается / таймаутит / rate-limited, автоматически пробует
+    // следующую. Все НЕ блокируют российские IP (OpenRouter проксирует через
+    // US/EU). Anthropic Claude не включаем — единственный кто режет РФ-трафик.
     //
-    // Все модели НЕ блокируют российские IP (OpenRouter проксирует через US/EU,
-    // конечные провайдеры не видят откуда пришёл клиент).
-    // Anthropic Claude НЕ включаем — единственный кто резко режет РФ-трафик.
-    //
-    //   1. Gemini 2.0 Flash         ~$0.10/$0.40 за 1M ток. — обычно отвечает 1-3с
-    //   2. GPT-4o (полный, не mini) ~$2.5/$10  — мощный, готовы платить за стабильность
-    //   3. Llama 3.3 70B Instruct   ~$0.13/$0.40 — open-source, не зависит от облаков
-    //   4. DeepSeek V3              ~$0.14/$0.28 — китайский, не зависит от Google/OpenAI
-    //   5. Mistral Small            ~$0.07/$0.27 — последний бекап, всегда быстрый
-    //
-    // При нормальной работе Gemini цепочка не задействуется → расходы те же.
-    // При сбое Google → пользователь даже не заметит, получит ответ от GPT-4o.
+    //   1. Gemini 2.0 Flash       ~$0.10/$0.40 — основная (быстро + дёшево)
+    //   2. GPT-4o (полный)        ~$2.5/$10    — мощный fallback при сбое Google
+    //   3. Llama 3.3 70B Instruct ~$0.13/$0.40 — open-source, последний бекап
     const MODEL_FALLBACKS = [
         "google/gemini-2.0-flash-001",
         "openai/gpt-4o",
         "meta-llama/llama-3.3-70b-instruct",
-        "deepseek/deepseek-chat",
-        "mistralai/mistral-small-3.2-24b-instruct",
     ];
 
     let response;
@@ -191,9 +181,6 @@ module.exports.handler = async function (event, context) {
                 stream: false,
                 max_tokens: 1500,
                 temperature: 0.3,
-                // route: "fallback" — при ошибке провайдера автоматически переключаемся
-                // на следующую модель из `models`. Спасает от 504 у Gemini, rate-limit и пр.
-                route: "fallback",
             }),
         });
     } catch {

@@ -8,54 +8,64 @@
 		setVoiceByName,
 		previewVoice,
 		cancelSpeech,
+		primeSpeech,
 	} from "$lib/ai/speech.js";
 	import * as haptics from "$lib/utils/haptics.js";
 
 	// Bottom-sheet: 2 большие кнопки «Мужской / Женский» с превью.
-	// Под капотом выбираем лучший доступный голос соответствующего пола (Yuri,
-	// Milena, Microsoft Pavel и т.п.). Если в системе нет нужного пола —
-	// показываем грей-кнопку с пометкой что недоступно.
+	// Обе плашки видны ВСЕГДА — даже если в системе нет голоса какого-то пола,
+	// вызовем системный default. Лучше «попытка с дефолтным голосом» чем
+	// «недоступно» — пользователь должен иметь выбор всегда.
 
 	let { onclose, onchange } = $props();
 
 	let currentGender = $state("unknown");
-	let availableMale = $state(null);
-	let availableFemale = $state(null);
+	let maleVoiceName = $state(null);   // имя выбранного мужского голоса
+	let femaleVoiceName = $state(null); // имя выбранного женского голоса
 	let previewing = $state(""); // "male" | "female" | ""
 
 	function refresh() {
-		availableMale = pickBestVoice("male");
-		availableFemale = pickBestVoice("female");
-		// Если pickBestVoice вернул не того пола (нет в системе) — обнуляем
-		if (availableMale && availableMale.gender !== "male") availableMale = null;
-		if (availableFemale && availableFemale.gender !== "female") availableFemale = null;
+		const all = getRussianVoices();
+		const males = all.filter((v) => v.gender === "male");
+		const females = all.filter((v) => v.gender === "female");
+		// Берём явно мужской/женский если есть. Иначе — default или первый из всех
+		// (на iPhone русские голоса обычно загружены, на Android может быть только один).
+		maleVoiceName = (males.find((v) => v.default) || males[0] || all.find((v) => v.default) || all[0])?.name || null;
+		femaleVoiceName = (females.find((v) => v.default) || females[0] || all.find((v) => v.default) || all[0])?.name || null;
 		currentGender = getCurrentGender();
 	}
 
 	onMount(() => {
+		// Pre-warm SpeechSynthesis — на iOS это критично для подгрузки голосов
+		primeSpeech();
 		refresh();
-		// Голоса могут грузиться асинхронно
-		setTimeout(refresh, 300);
+		// Голоса часто грузятся асинхронно — пробуем ещё несколько раз
+		const t1 = setTimeout(refresh, 300);
+		const t2 = setTimeout(refresh, 1000);
 		const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
-		if (synth) synth.addEventListener?.("voiceschanged", refresh);
-		return () => synth?.removeEventListener?.("voiceschanged", refresh);
+		synth?.addEventListener?.("voiceschanged", refresh);
+		return () => {
+			clearTimeout(t1);
+			clearTimeout(t2);
+			synth?.removeEventListener?.("voiceschanged", refresh);
+		};
 	});
 
 	onDestroy(() => cancelSpeech());
 
 	function pick(gender) {
-		const voice = gender === "male" ? availableMale : availableFemale;
-		if (!voice) return;
+		const name = gender === "male" ? maleVoiceName : femaleVoiceName;
 		haptics.success();
-		setVoiceByName(voice.name);
+		if (name) {
+			setVoiceByName(name);
+		}
 		currentGender = gender;
-		onchange?.(voice.name);
+		onchange?.(name);
 	}
 
 	function preview(gender, e) {
 		e.stopPropagation();
-		const voice = gender === "male" ? availableMale : availableFemale;
-		if (!voice) return;
+		const name = gender === "male" ? maleVoiceName : femaleVoiceName;
 		haptics.tap();
 		if (previewing === gender) {
 			cancelSpeech();
@@ -63,7 +73,8 @@
 			return;
 		}
 		previewing = gender;
-		previewVoice(voice.name);
+		// Если конкретного голоса нет — previewVoice("") сыграет системным default
+		previewVoice(name || "");
 		setTimeout(() => {
 			if (previewing === gender) previewing = "";
 		}, 4500);
@@ -96,32 +107,26 @@
 			<div
 				class="vp-option"
 				class:selected={currentGender === "male"}
-				class:disabled={!availableMale}
-				onclick={() => availableMale && pick("male")}
+				onclick={() => pick("male")}
 				role="button"
-				tabindex={availableMale ? 0 : -1}
-				aria-disabled={!availableMale}
+				tabindex="0"
 				aria-pressed={currentGender === "male"}
-				onkeydown={(e) => { if (e.key === "Enter" && availableMale) pick("male"); }}
+				onkeydown={(e) => { if (e.key === "Enter") pick("male"); }}
 			>
 				<div class="vp-avatar male">
 					<User size={36} strokeWidth={2} />
 				</div>
 				<div class="vp-label">Мужской</div>
-				{#if !availableMale}
-					<div class="vp-unavailable">Недоступно</div>
-				{:else}
-					<button
-						type="button"
-						class="vp-preview-btn"
-						class:playing={previewing === "male"}
-						onclick={(e) => preview("male", e)}
-						aria-label="Прослушать мужской голос"
-					>
-						<Play size={14} fill={previewing === "male" ? "currentColor" : "none"} />
-						{previewing === "male" ? "Стоп" : "Послушать"}
-					</button>
-				{/if}
+				<button
+					type="button"
+					class="vp-preview-btn"
+					class:playing={previewing === "male"}
+					onclick={(e) => preview("male", e)}
+					aria-label="Прослушать мужской голос"
+				>
+					<Play size={14} fill={previewing === "male" ? "currentColor" : "none"} />
+					{previewing === "male" ? "Стоп" : "Послушать"}
+				</button>
 				{#if currentGender === "male"}
 					<div class="vp-checkmark">
 						<Check size={16} />
@@ -134,32 +139,26 @@
 			<div
 				class="vp-option"
 				class:selected={currentGender === "female"}
-				class:disabled={!availableFemale}
-				onclick={() => availableFemale && pick("female")}
+				onclick={() => pick("female")}
 				role="button"
-				tabindex={availableFemale ? 0 : -1}
-				aria-disabled={!availableFemale}
+				tabindex="0"
 				aria-pressed={currentGender === "female"}
-				onkeydown={(e) => { if (e.key === "Enter" && availableFemale) pick("female"); }}
+				onkeydown={(e) => { if (e.key === "Enter") pick("female"); }}
 			>
 				<div class="vp-avatar female">
 					<UserRound size={36} strokeWidth={2} />
 				</div>
 				<div class="vp-label">Женский</div>
-				{#if !availableFemale}
-					<div class="vp-unavailable">Недоступно</div>
-				{:else}
-					<button
-						type="button"
-						class="vp-preview-btn"
-						class:playing={previewing === "female"}
-						onclick={(e) => preview("female", e)}
-						aria-label="Прослушать женский голос"
-					>
-						<Play size={14} fill={previewing === "female" ? "currentColor" : "none"} />
-						{previewing === "female" ? "Стоп" : "Послушать"}
-					</button>
-				{/if}
+				<button
+					type="button"
+					class="vp-preview-btn"
+					class:playing={previewing === "female"}
+					onclick={(e) => preview("female", e)}
+					aria-label="Прослушать женский голос"
+				>
+					<Play size={14} fill={previewing === "female" ? "currentColor" : "none"} />
+					{previewing === "female" ? "Стоп" : "Послушать"}
+				</button>
 				{#if currentGender === "female"}
 					<div class="vp-checkmark">
 						<Check size={16} />
@@ -167,13 +166,6 @@
 				{/if}
 			</div>
 		</div>
-
-		{#if !availableMale && !availableFemale}
-			<p class="vp-hint">
-				В системе нет русских голосов. На iPhone проверьте Настройки → Универсальный
-				доступ → Контент вслух → Голоса → Русский → загрузите Milena или Yuri.
-			</p>
-		{/if}
 	</div>
 </div>
 
@@ -279,10 +271,6 @@
 		border-color: var(--color-primary);
 		background: color-mix(in oklch, var(--color-primary) 10%, var(--color-base-100));
 	}
-	.vp-option.disabled {
-		opacity: 0.45;
-		cursor: not-allowed;
-	}
 
 	.vp-avatar {
 		width: 80px;
@@ -326,13 +314,6 @@
 		border-color: var(--color-primary);
 	}
 
-	.vp-unavailable {
-		font-size: 11px;
-		color: var(--color-base-content);
-		opacity: 0.5;
-		font-weight: 500;
-	}
-
 	.vp-checkmark {
 		position: absolute;
 		top: 10px;
@@ -347,11 +328,4 @@
 		justify-content: center;
 	}
 
-	.vp-hint {
-		margin: 16px 4px 0;
-		font-size: 12px;
-		color: var(--color-base-content);
-		opacity: 0.6;
-		line-height: 1.5;
-	}
 </style>
