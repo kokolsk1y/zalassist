@@ -5,8 +5,9 @@
 	import { loadCatalog, getCatalogDate } from "$lib/data/catalog.js";
 	import { createSearchEngine } from "$lib/search/engine.js";
 	import VoiceInput from "$lib/components/VoiceInput.svelte";
-	import { Search, MessageSquare, Phone, MapPin, Clock, PackageOpen } from "lucide-svelte";
+	import { Search, MessageSquare, Phone, MapPin, Clock, PackageOpen, Globe } from "lucide-svelte";
 	import CategoryIcon from "$lib/components/CategoryIcon.svelte";
+	import SiteMenu from "$lib/components/SiteMenu.svelte";
 	import { STORE, callPhone, openInMaps, getStoreStatus } from "$lib/data/store-info.js";
 	import { recentlyViewedStore } from "$lib/stores/history.js";
 	import * as haptics from "$lib/utils/haptics.js";
@@ -51,6 +52,7 @@
 	let greeting = $state(getGreeting());
 	// Часы работы магазина — обновляем раз в минуту чтобы переход открыто/закрыто отображался живо
 	let storeStatus = $state(getStoreStatus());
+	let siteMenuOpen = $state(false);
 	let recentlyViewed = $state([]);
 	$effect(() => {
 		const unsub = recentlyViewedStore.subscribe(v => { recentlyViewed = v; });
@@ -283,36 +285,42 @@
 	</button>
 
 	<!-- Связь с магазином: позвонить + маршрут одним тапом -->
-	<div class="w-full max-w-md grid grid-cols-2 gap-3 mb-6">
+	<div class="w-full max-w-md grid grid-cols-3 gap-2 mb-6">
 		<a
 			href={callPhone()}
 			onclick={() => haptics.tap()}
-			class="bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform p-3 flex items-center gap-3"
+			class="bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform p-2.5 flex flex-col items-center gap-1.5 min-h-[80px] justify-center"
 		>
-			<div class="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center text-success shrink-0">
-				<Phone size={20} />
+			<div class="w-9 h-9 rounded-full bg-success/15 flex items-center justify-center text-success shrink-0">
+				<Phone size={18} />
 			</div>
-			<div class="text-left min-w-0">
-				<p class="text-xs text-base-content/60 leading-none mb-1">Позвонить</p>
-				<p class="text-sm font-semibold leading-tight truncate">{STORE.phoneDisplay}</p>
-			</div>
+			<p class="text-xs font-medium text-center">Позвонить</p>
 		</a>
 		<a
 			href={openInMaps()}
 			target="_blank"
 			rel="noopener"
 			onclick={() => haptics.tap()}
-			class="bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform p-3 flex items-center gap-3"
+			class="bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform p-2.5 flex flex-col items-center gap-1.5 min-h-[80px] justify-center"
 		>
-			<div class="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center text-primary shrink-0">
-				<MapPin size={20} />
+			<div class="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary shrink-0">
+				<MapPin size={18} />
 			</div>
-			<div class="text-left min-w-0">
-				<p class="text-xs text-base-content/60 leading-none mb-1">Маршрут</p>
-				<p class="text-sm font-semibold leading-tight truncate">До магазина</p>
-			</div>
+			<p class="text-xs font-medium text-center">Маршрут</p>
 		</a>
+		<button
+			type="button"
+			onclick={() => { haptics.tap(); siteMenuOpen = true; }}
+			class="bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform p-2.5 flex flex-col items-center gap-1.5 min-h-[80px] justify-center"
+		>
+			<div class="w-9 h-9 rounded-full bg-secondary/15 flex items-center justify-center text-secondary shrink-0">
+				<Globe size={18} />
+			</div>
+			<p class="text-xs font-medium text-center">Полный сайт</p>
+		</button>
 	</div>
+
+	<SiteMenu open={siteMenuOpen} onclose={() => siteMenuOpen = false} />
 
 </div>
 

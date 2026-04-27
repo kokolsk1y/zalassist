@@ -6,6 +6,36 @@ let _voicesLoaded = false;
 let _ruVoice = null;
 
 const VOICE_PREF_KEY = "zalassist-voice-name";
+const GENDER_PREF_KEY = "zalassist-voice-gender";
+
+// Pitch-имитация пола когда в системе только один русский голос.
+// 0.78 = ниже (мужественнее), 1.25 = выше (женственнее), 1.0 = обычный.
+// Спасает на iPhone где по умолчанию установлен один Milena/Yuri.
+function pitchForGender(gender) {
+	if (gender === "male") return 0.78;
+	if (gender === "female") return 1.25;
+	return 1.0;
+}
+
+// Сохранённый пользователем выбор пола («male»/«female»/null = по голосу)
+function getStoredGender() {
+	if (typeof window === "undefined") return null;
+	try {
+		const v = localStorage.getItem(GENDER_PREF_KEY);
+		return v === "male" || v === "female" ? v : null;
+	} catch { return null; }
+}
+
+export function setGenderPref(gender) {
+	if (typeof window === "undefined") return;
+	try {
+		if (gender === "male" || gender === "female") {
+			localStorage.setItem(GENDER_PREF_KEY, gender);
+		} else {
+			localStorage.removeItem(GENDER_PREF_KEY);
+		}
+	} catch {}
+}
 
 function ensureVoices() {
 	if (typeof window === "undefined" || _voicesLoaded) return;
@@ -71,8 +101,11 @@ export function pickBestVoice(gender) {
 	return voices.find((v) => v.default) || voices[0];
 }
 
-// Текущий пол выбранного голоса
+// Текущий пол: сначала смотрим явный выбор пользователя в localStorage,
+// иначе пытаемся угадать по имени текущего голоса.
 export function getCurrentGender() {
+	const stored = getStoredGender();
+	if (stored) return stored;
 	const name = getCurrentVoiceName();
 	if (!name) return "unknown";
 	return guessGender(name);
@@ -95,17 +128,26 @@ export function setVoiceByName(name) {
 	return true;
 }
 
-// Тест-озвучка для preview-кнопки в выборе голоса
-export function previewVoice(voiceName, sample = "Привет, я помощник ЭлектроЦентра. Спрашивайте о товарах.") {
+// Тест-озвучка для preview-кнопки.
+// Если genderOverride задан — используем pitch для этого пола (для preview обоих
+// плашек когда в системе один голос).
+export function previewVoice(voiceName, opts = {}) {
 	if (typeof window === "undefined" || !window.speechSynthesis) return;
+	const { sample = "Привет, я помощник ЭлектроЦентра. Спрашивайте о товарах.", gender = null } = opts;
 	cancelSpeech();
+	ensureVoices();
 	const voices = window.speechSynthesis.getVoices();
-	const voice = voices.find((v) => v.name === voiceName);
+	// Если переданное имя есть в системе — используем, иначе — текущий выбранный или дефолт
+	const voice = (voiceName && voices.find((v) => v.name === voiceName))
+		|| _ruVoice
+		|| voices.find((v) => v.lang?.startsWith("ru"))
+		|| voices[0];
 	if (!voice) return;
 	const utter = new SpeechSynthesisUtterance(sample);
 	utter.voice = voice;
-	utter.lang = voice.lang;
+	utter.lang = voice.lang || "ru-RU";
 	utter.rate = 1.05;
+	utter.pitch = pitchForGender(gender);
 	window.speechSynthesis.speak(utter);
 }
 
@@ -178,7 +220,8 @@ export function speak(text, { onStart, onEnd, rate = 1.05, pitch = 1, volume = 1
 		const utter = new SpeechSynthesisUtterance(clean);
 		utter.lang = "ru-RU";
 		utter.rate = rate;
-		utter.pitch = pitch;
+		// Если задан конкретный pitch — используем его, иначе — pitch по выбранному полу
+		utter.pitch = pitch !== 1 ? pitch : pitchForGender(getStoredGender());
 		utter.volume = volume;
 		if (_ruVoice) utter.voice = _ruVoice;
 
@@ -250,6 +293,7 @@ export function speakSentences(text, { onSentenceStart, rate = 1.05, maxLength =
 			}
 		}, 200);
 
+		const gender = getStoredGender();
 		for (const sentence of sentences) {
 			if (cancelled) break;
 			onSentenceStart?.(sentence);
@@ -257,6 +301,7 @@ export function speakSentences(text, { onSentenceStart, rate = 1.05, maxLength =
 				const utter = new SpeechSynthesisUtterance(sentence);
 				utter.lang = "ru-RU";
 				utter.rate = rate;
+				utter.pitch = pitchForGender(gender);
 				if (_ruVoice) utter.voice = _ruVoice;
 				utter.onend = () => r("ok");
 				utter.onerror = () => r("err");

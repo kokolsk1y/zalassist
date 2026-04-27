@@ -34,11 +34,12 @@
 	let activeCategory = $state("");
 	let visibleCount = $state(PAGE_SIZE);
 
-	// Сортировка и фильтр по цене
+	// Сортировка и фильтры
 	let sortBy = $state("relevance");
 	let priceMin = $state("");
 	let priceMax = $state("");
 	let showFilters = $state(false);
+	let brandFilter = $state(""); // выбранный бренд для фильтра внутри категории
 
 	// Подсказки
 	let suggestions = $state([]);
@@ -64,6 +65,9 @@
 
 	function getFilteredResults() {
 		let filtered = results;
+		if (brandFilter) {
+			filtered = filtered.filter(p => p.brand === brandFilter);
+		}
 		const min = Number(priceMin) || 0;
 		const max = Number(priceMax) || Infinity;
 		if (min > 0 || max < Infinity) {
@@ -77,6 +81,19 @@
 			filtered = [...filtered].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ru"));
 		}
 		return filtered;
+	}
+
+	// Топ брендов в текущей выборке — для chip-фильтра под категорией.
+	// Считаем сколько товаров каждого бренда, берём 10 ходовых.
+	function getTopBrands() {
+		const counts = {};
+		for (const p of results) {
+			if (!p.brand) continue;
+			counts[p.brand] = (counts[p.brand] || 0) + 1;
+		}
+		return Object.entries(counts)
+			.sort((a, b) => b[1] - a[1])
+			.slice(0, 10);
 	}
 
 	function parseUrl() {
@@ -315,12 +332,35 @@
 			</div>
 		{:else}
 			{@const displayed = getFilteredResults()}
+			{@const topBrands = getTopBrands()}
 			{#if activeCategory}
 				<div class="flex items-center gap-2 mb-3">
 					<h2 class="text-lg font-bold text-base-content">{activeCategory}</h2>
 					<span class="badge badge-sm badge-ghost">{displayed.length}</span>
 					<button onclick={() => goto(`${base}/search/`)} class="ml-auto text-sm text-primary">Сбросить</button>
 				</div>
+
+				<!-- Бренды как подразделы внутри категории — горизонтальный скролл chips -->
+				{#if topBrands.length > 1}
+					<div class="brand-chips">
+						<button
+							class="brand-chip"
+							class:active={brandFilter === ""}
+							onclick={() => brandFilter = ""}
+						>
+							Все · {results.length}
+						</button>
+						{#each topBrands as [brand, count]}
+							<button
+								class="brand-chip"
+								class:active={brandFilter === brand}
+								onclick={() => brandFilter = brandFilter === brand ? "" : brand}
+							>
+								{brand} · {count}
+							</button>
+						{/each}
+					</div>
+				{/if}
 			{:else}
 				<div class="flex items-center gap-2 mb-3">
 					<p class="text-sm text-base-content/60">Результатов: {displayed.length}</p>
@@ -397,3 +437,39 @@
 	onremove={removeFromCart}
 	onview={(p) => selectedProduct = p}
 />
+
+<style>
+	/* Горизонтальная лента chip-фильтров по бренду внутри категории.
+	   Скролл если брендов много, snap чтобы не зацикливалось. */
+	.brand-chips {
+		display: flex;
+		gap: 8px;
+		overflow-x: auto;
+		padding-bottom: 8px;
+		margin-bottom: 12px;
+		scroll-snap-type: x proximity;
+		-webkit-overflow-scrolling: touch;
+	}
+	.brand-chips::-webkit-scrollbar { display: none; }
+	.brand-chip {
+		flex: 0 0 auto;
+		padding: 6px 14px;
+		border-radius: 9999px;
+		background: var(--color-base-100);
+		border: 1px solid var(--color-base-300);
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--color-base-content);
+		cursor: pointer;
+		transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+		white-space: nowrap;
+		scroll-snap-align: start;
+		-webkit-tap-highlight-color: transparent;
+	}
+	.brand-chip:active { transform: scale(0.96); }
+	.brand-chip.active {
+		background: var(--color-primary);
+		color: var(--color-primary-content);
+		border-color: var(--color-primary);
+	}
+</style>

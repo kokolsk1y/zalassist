@@ -6,6 +6,7 @@
 		getCurrentGender,
 		pickBestVoice,
 		setVoiceByName,
+		setGenderPref,
 		previewVoice,
 		cancelSpeech,
 		primeSpeech,
@@ -59,6 +60,8 @@
 		if (name) {
 			setVoiceByName(name);
 		}
+		// Сохраняем выбор пола — используется для pitch-имитации когда в системе один голос
+		setGenderPref(gender);
 		currentGender = gender;
 		onchange?.(name);
 	}
@@ -73,8 +76,9 @@
 			return;
 		}
 		previewing = gender;
-		// Если конкретного голоса нет — previewVoice("") сыграет системным default
-		previewVoice(name || "");
+		// Передаём gender в previewVoice — для pitch-имитации (мужской ниже, женский выше).
+		// Так оба превью звучат по-разному даже если в системе один русский голос.
+		previewVoice(name || "", { gender });
 		setTimeout(() => {
 			if (previewing === gender) previewing = "";
 		}, 4500);
