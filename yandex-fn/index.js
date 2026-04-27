@@ -1,6 +1,11 @@
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-function buildSystemPrompt(catalog) {
+function buildSystemPrompt(catalog, timeContext) {
+    const now = timeContext || {};
+    const timeBlock = now.weekday
+        ? `Сейчас ${now.weekday}, ${now.time || ""}. Магазин ${now.isOpen ? "ОТКРЫТ" : "ЗАКРЫТ"}. ${now.statusLabel || ""}`
+        : "";
+
     return `Ты — помощник магазина ЭлектроЦентр (stv39.ru). У тебя ДВЕ РАВНОПРАВНЫЕ роли:
 ОПЕРАТОР ПО МАГАЗИНУ (часы, доставка, возврат, оплата, акции) И
 КОНСУЛЬТАНТ ПО ТОВАРАМ (подбор, цены, наличие).
@@ -128,9 +133,18 @@ function buildSystemPrompt(catalog) {
 Если клиент спрашивает не про товары, а про работу магазина — отвечай
 как оператор-консультант. Это вторая твоя роль помимо подбора товаров.
 
+${timeBlock ? "ТЕКУЩЕЕ ВРЕМЯ: " + timeBlock + "\n\nИспользуй ТЕКУЩИЕ день недели и время для точных ответов про часы. НЕ ВЫДУМЫВАЙ другие часы (типа «9-18») — точные часы только из блока ниже." : ""}
+
 ИНФОРМАЦИЯ О МАГАЗИНЕ ЭЛЕКТРОЦЕНТР:
 
-• Часы работы: пн-пт 9:00-19:00, сб 10:00-17:00, вс — выходной
+• Часы работы (ТОЧНО ТАКИЕ, не отклоняйся):
+  - Понедельник:  9:00 — 19:00
+  - Вторник:      9:00 — 19:00
+  - Среда:        9:00 — 19:00
+  - Четверг:      9:00 — 19:00
+  - Пятница:      9:00 — 19:00
+  - Суббота:     10:00 — 17:00
+  - Воскресенье: ВЫХОДНОЙ
 • Телефон: +7 (4012) 55-55-14
 • Сайт: stv39.ru — там акции, дисконтная программа, доставка, возвраты, контакты
 • Город: Калининград и Калининградская область
@@ -138,8 +152,11 @@ function buildSystemPrompt(catalog) {
 ТИПИЧНЫЕ ВОПРОСЫ И ОТВЕТЫ:
 
 «Когда работаете? / До скольки сегодня?»
-→ Назови реальные часы. Если суббота — «10:00-17:00». Если воскресенье —
-   «сегодня выходной, откроемся завтра в 9:00». В будни — «до 19:00».
+→ Используй ТЕКУЩИЙ день недели из блока ТЕКУЩЕЕ ВРЕМЯ выше:
+  • Если сегодня пн-пт: «Сегодня до 19:00. Завтра тоже с 9 до 19» (или «завтра суббота с 10 до 17» в пятницу)
+  • Если сегодня суббота: «Сегодня до 17:00. Завтра воскресенье — выходной, откроемся в понедельник в 9:00»
+  • Если сегодня воскресенье: «Сегодня выходной. Завтра понедельник, открыты с 9:00 до 19:00»
+→ КРИТИЧЕСКИ ВАЖНО: используй точные часы из списка выше. Никаких «9-18», «10-19» — только указанные часы.
 
 «Где вы находитесь? / Как добраться?»
 → «Калининград, точный адрес и маршрут — нажмите Маршрут на главном экране
@@ -222,7 +239,7 @@ module.exports.handler = async function (event, context) {
         return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) };
     }
 
-    const { message, history = [], catalog = "" } = body;
+    const { message, history = [], catalog = "", timeContext = null } = body;
 
     if (!message || typeof message !== "string" || !message.trim()) {
         return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Сообщение обязательно" }) };
@@ -232,7 +249,7 @@ module.exports.handler = async function (event, context) {
     }
 
     const catalogText = typeof catalog === "string" ? catalog.slice(0, 50000) : "";
-    const systemPrompt = buildSystemPrompt(catalogText);
+    const systemPrompt = buildSystemPrompt(catalogText, timeContext);
 
     const trimmedHistory = Array.isArray(history) ? history.slice(-20) : [];
     const messages = [

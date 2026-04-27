@@ -272,15 +272,18 @@
 		</div>
 	{/if}
 
-	<!-- AI блок -->
+	<!-- AI блок: обе роли — консультант по товарам + оператор по магазину -->
 	<button
 		onclick={() => goto(`${base}/chat/`)}
-		class="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform mb-3"
+		class="w-full max-w-md bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/25 rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform mb-3 relative overflow-hidden"
 	>
-		<img src="{base}/ai-avatar.png" alt="AI" class="w-12 h-12 rounded-full bg-white p-1 shadow-sm" />
-		<div class="text-left">
-			<p class="font-semibold text-base-content">Не знаете что нужно?</p>
-			<p class="text-sm text-base-content/60">Опишите задачу — подберём товары</p>
+		<img src="{base}/ai-avatar.png" alt="AI" class="w-14 h-14 rounded-full bg-white p-1 shadow-md flex-shrink-0" />
+		<div class="text-left flex-1 min-w-0">
+			<div class="flex items-center gap-2 mb-1">
+				<p class="font-bold text-base-content">AI-помощник</p>
+				<span class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">24/7</span>
+			</div>
+			<p class="text-xs text-base-content/70 leading-snug">Подбор товаров, ответы про магазин,<br/>доставку, акции и оплату</p>
 		</div>
 	</button>
 

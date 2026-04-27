@@ -36,7 +36,10 @@
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<!-- interactive-widget=resizes-content — на Android Chrome 108+ и Safari 17+
+		     гарантирует что dvh уменьшается под виртуальную клавиатуру. Без этого
+		     при открытой клавиатуре нижние элементы оказываются под клавиатурой. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
