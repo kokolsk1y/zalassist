@@ -51,8 +51,8 @@
 		</button>
 
 		{#if product}
-			<!-- Фото -->
-			<div class="w-full h-56 bg-base-200 flex items-center justify-center overflow-hidden">
+			<!-- Фото — белый фон чтобы не было серых полос вокруг товара -->
+			<div class="w-full h-56 product-photo-large flex items-center justify-center overflow-hidden">
 				{#if product.photo && !imgError}
 					<img
 						src={product.photo}
@@ -131,3 +131,11 @@
 		<button>close</button>
 	</form>
 </dialog>
+
+<style>
+	/* Большое фото товара — белый фон чтобы не было серых полос по бокам
+	   когда фотография поставщика на белом фоне (а контейнер серый). */
+	.product-photo-large {
+		background: #ffffff;
+	}
+</style>

@@ -92,13 +92,15 @@
 	role="button"
 	tabindex="0"
 >
-	<!-- Фото с маленькой иконкой категории сверху-слева как «корешок» -->
-	<div class="relative w-20 h-20 rounded-lg bg-base-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+	<!-- Фото товара. Фон зафиксирован белым (даже в тёмной теме): фотографии
+	     поставщиков почти всегда на белом фоне, иначе видны серые «полосы»
+	     по бокам когда object-contain не заполняет весь квадрат. -->
+	<div class="product-photo relative w-20 h-20 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center">
 		{#if product.photo && !imgError}
 			<img
 				src={product.photo}
 				alt={product.name}
-				class="w-full h-full object-contain"
+				class="w-full h-full object-contain p-1"
 				onerror={() => imgError = true}
 				loading="lazy"
 			/>
@@ -193,6 +195,11 @@
 		transition: transform 0.15s ease, background 0.15s ease;
 	}
 	.add-btn:active { transform: scale(0.88); }
+
+	.product-photo {
+		background: #ffffff;
+		box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--color-base-content) 8%, transparent);
+	}
 
 	/* Бейдж скидки — sticker-стиль с градиентом и лёгким наклоном */
 	.discount-badge {

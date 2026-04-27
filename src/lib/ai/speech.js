@@ -29,8 +29,21 @@ function ensureVoices() {
 	_voicesLoaded = true;
 }
 
-// Получить список доступных русских голосов — для выбора пользователем.
-// Возвращает [{name, lang, gender?}, ...]. Может быть пусто на ранней загрузке.
+// Эвристика — определить пол голоса по имени.
+// Возвращает "male" | "female" | "unknown".
+function guessGender(name) {
+	const n = String(name).toLowerCase();
+	// Известные мужские системные голоса (Apple iOS / Microsoft / Google)
+	if (/\b(yuri|alex|alexei|alexey|maxim|pavel|bogdan|nikolay|dmitry|viktor)\b/i.test(name)) return "male";
+	// Известные женские
+	if (/\b(milena|katya|irina|svetlana|tatyana|elena|natalya|anna|maria|olga|polina|alena|zhenya)\b/i.test(name)) return "female";
+	// Microsoft/Google помечают пол в названии
+	if (/female|женск/i.test(n)) return "female";
+	if (/\bmale\b|мужск/i.test(n)) return "male";
+	return "unknown";
+}
+
+// Получить список доступных русских голосов с угаданным полом.
 export function getRussianVoices() {
 	if (typeof window === "undefined" || !window.speechSynthesis) return [];
 	ensureVoices();
@@ -41,7 +54,28 @@ export function getRussianVoices() {
 			name: v.name,
 			lang: v.lang,
 			default: v.default,
+			gender: guessGender(v.name),
 		}));
+}
+
+// Возвращает один лучший голос указанного пола (для UI «Мужской/Женский»).
+// Приоритет: явный gender → default-голос → первый в списке.
+export function pickBestVoice(gender) {
+	const voices = getRussianVoices();
+	if (voices.length === 0) return null;
+	const matching = voices.filter((v) => v.gender === gender);
+	if (matching.length > 0) {
+		return matching.find((v) => v.default) || matching[0];
+	}
+	// Если такого пола нет в системе — возвращаем default или первый
+	return voices.find((v) => v.default) || voices[0];
+}
+
+// Текущий пол выбранного голоса
+export function getCurrentGender() {
+	const name = getCurrentVoiceName();
+	if (!name) return "unknown";
+	return guessGender(name);
 }
 
 // Имя текущего выбранного голоса (для подсветки в UI)
