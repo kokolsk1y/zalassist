@@ -150,19 +150,27 @@ module.exports.handler = async function (event, context) {
         { role: "user", content: message.trim() },
     ];
 
-    // Fallback-цепочка моделей. OpenRouter принимает массив `models`:
-    // если первая возвращает ошибку или таймаутит — автоматически пробует следующую.
-    // Документация: https://openrouter.ai/docs#models
+    // Fallback-цепочка моделей. OpenRouter `route: "fallback"` —
+    // если модель ошибается / таймаутит / rate-limited, автоматически пробует
+    // следующую. Принцип цепочки: «дешёвая+быстрая → надёжная даже если дороже».
     //
-    // Порядок:
-    //   1. Gemini 2.0 Flash — основная (быстрая, дешёвая, понимает русский)
-    //   2. Llama 3.3 70B Instruct — крепкий fallback с поддержкой ru
-    //   3. Mistral Small — лёгкий бекап если оба выше упадут
+    // Все модели НЕ блокируют российские IP (OpenRouter проксирует через US/EU,
+    // конечные провайдеры не видят откуда пришёл клиент).
+    // Anthropic Claude НЕ включаем — единственный кто резко режет РФ-трафик.
     //
-    // Все три не блокируют российские IP. Цена в пределах одного порядка.
+    //   1. Gemini 2.0 Flash         ~$0.10/$0.40 за 1M ток. — обычно отвечает 1-3с
+    //   2. GPT-4o (полный, не mini) ~$2.5/$10  — мощный, готовы платить за стабильность
+    //   3. Llama 3.3 70B Instruct   ~$0.13/$0.40 — open-source, не зависит от облаков
+    //   4. DeepSeek V3              ~$0.14/$0.28 — китайский, не зависит от Google/OpenAI
+    //   5. Mistral Small            ~$0.07/$0.27 — последний бекап, всегда быстрый
+    //
+    // При нормальной работе Gemini цепочка не задействуется → расходы те же.
+    // При сбое Google → пользователь даже не заметит, получит ответ от GPT-4o.
     const MODEL_FALLBACKS = [
         "google/gemini-2.0-flash-001",
+        "openai/gpt-4o",
         "meta-llama/llama-3.3-70b-instruct",
+        "deepseek/deepseek-chat",
         "mistralai/mistral-small-3.2-24b-instruct",
     ];
 
