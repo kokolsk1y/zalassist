@@ -276,14 +276,14 @@
 				</div>
 			{/if}
 			<h2 class="text-lg font-bold text-base-content mb-3">Категории</h2>
-			<div class="grid grid-cols-2 gap-2">
+			<div class="grid grid-cols-1 gap-2">
 				{#each categories as cat}
 					<button
 						onclick={() => goto(`${base}/search/?category=${encodeURIComponent(cat)}`)}
-						class="cat-tile flex items-center gap-3 p-3 bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform text-left min-h-[64px]"
+						class="cat-tile flex items-center gap-3 p-3 bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform text-left min-h-[64px] w-full"
 					>
 						<CategoryIcon category={cat} size={28} withBg={true} />
-						<span class="text-sm font-medium leading-tight flex-1">{cat}</span>
+						<span class="text-sm font-medium leading-snug flex-1 break-words">{cat}</span>
 					</button>
 				{/each}
 			</div>

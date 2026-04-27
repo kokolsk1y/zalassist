@@ -153,12 +153,16 @@ html, body {
 
 /* Body как flex-колонка на всю высоту → main растягивается через flex-1,
    нижний навбар остаётся fixed и не «прыгает» при коллапсе iOS URL-bar.
-   :where() даёт нулевую специфичность чтобы не ломать модалки/др. layouts. */
+   :where() даёт нулевую специфичность чтобы не ломать модалки/др. layouts.
+   Фон body совпадает с фоном страниц чтобы при свайпе по краям не была
+   видна белая полоса фона. */
 body {
 	display: flex;
 	flex-direction: column;
 	min-height: 100dvh;
 	min-height: 100vh; /* fallback */
+	background: var(--color-base-200);
+	overflow-x: hidden; /* во время свайпа transform мог бы дать горизонтальный скролл */
 }
 
 /* Когда на input/textarea фокус — прячем нижний навбар, чтобы он не
@@ -171,9 +175,17 @@ body.kb-open .bottom-nav {
 }
 
 /* Real-time drag для свайп-навигации: main следует за пальцем по горизонтали.
-   --swipe-dx ставит swipe-nav.js пока пользователь тянет; на отпускании сбрасывается. */
-main {
+   ВАЖНО: transform применяется ТОЛЬКО во время свайпа (body.swiping). Иначе
+   transform создаёт новый stacking context и ломает position: fixed внутри
+   страниц — нижний навбар не закрывался бы fullscreen-модалками типа звонка
+   или сканера. */
+body.swiping main {
 	transform: translateX(var(--swipe-dx, 0px));
+	transition: none;
+}
+body.swiping-release main {
+	transform: translateX(0);
+	transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* iOS: если font-size input < 16px — браузер делает zoom при фокусе.

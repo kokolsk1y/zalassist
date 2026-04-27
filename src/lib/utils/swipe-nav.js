@@ -37,9 +37,21 @@ export function attachSwipeNav({ onLeft, onRight, isAllowed = () => true } = {})
 
 	function setOffset(px) {
 		document.documentElement.style.setProperty("--swipe-dx", `${px}px`);
+		document.body.classList.add("swiping");
 	}
 	function clearOffset() {
+		document.body.classList.remove("swiping");
+		document.body.classList.remove("swiping-release");
 		document.documentElement.style.removeProperty("--swipe-dx");
+	}
+	function releaseAnim() {
+		// Плавный возврат к 0 — body.swiping снято, body.swiping-release с transition
+		document.body.classList.remove("swiping");
+		document.body.classList.add("swiping-release");
+		document.documentElement.style.removeProperty("--swipe-dx");
+		setTimeout(() => {
+			document.body.classList.remove("swiping-release");
+		}, 240);
 	}
 
 	function onDown(e) {
@@ -89,21 +101,25 @@ export function attachSwipeNav({ onLeft, onRight, isAllowed = () => true } = {})
 	}
 
 	function onUp() {
-		if (cancelled) { cancelled = false; return; }
+		if (cancelled) { cancelled = false; clearOffset(); return; }
 		if (!tracking) return;
 		tracking = false;
 		const dx = lastX - startX;
 
-		// Анимация-возврат к 0 (даже если переходим — целевая страница пере-рендерится)
-		document.documentElement.style.transition = "--swipe-dx 0.18s ease-out";
+		// Если threshold не пройден — плавный возврат к 0
+		if (!decided || Math.abs(dx) < SWIPE_THRESHOLD) {
+			releaseAnim();
+			return;
+		}
+
+		// Threshold пройден — переходим. Сначала очищаем transform полностью
+		// и даём кадр браузеру чтобы пере-paintить без сдвига → ViewTransition
+		// snapshot будет корректный, не «дёрганый».
 		clearOffset();
-		setTimeout(() => { document.documentElement.style.transition = ""; }, 220);
-
-		if (!decided) return;
-		if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-
-		if (dx < 0) onLeft?.();
-		else onRight?.();
+		requestAnimationFrame(() => {
+			if (dx < 0) onLeft?.();
+			else onRight?.();
+		});
 	}
 
 	function onCancel() {

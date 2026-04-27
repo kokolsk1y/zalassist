@@ -23,7 +23,7 @@ export function streamChat({ message, history, catalogSubset, onChunk, onDone, o
 
 				try {
 					const controller = new AbortController();
-					const timeout = setTimeout(() => controller.abort(), 15000);
+					const timeout = setTimeout(() => controller.abort(), 30000);
 
 					const response = await fetch(API_URL, {
 						method: "POST",

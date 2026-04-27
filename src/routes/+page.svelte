@@ -314,13 +314,6 @@
 		</a>
 	</div>
 
-	<!-- Статус каталога — только индикатор «работает», без технических цифр -->
-	{#if catalogCount > 0}
-		<p class="text-xs text-base-content/40 mt-auto pt-4 flex items-center gap-1.5">
-			<span class="w-1.5 h-1.5 rounded-full bg-success"></span>
-			Каталог актуален
-		</p>
-	{/if}
 </div>
 
 <style>
