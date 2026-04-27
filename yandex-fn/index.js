@@ -150,6 +150,22 @@ module.exports.handler = async function (event, context) {
         { role: "user", content: message.trim() },
     ];
 
+    // Fallback-цепочка моделей. OpenRouter принимает массив `models`:
+    // если первая возвращает ошибку или таймаутит — автоматически пробует следующую.
+    // Документация: https://openrouter.ai/docs#models
+    //
+    // Порядок:
+    //   1. Gemini 2.0 Flash — основная (быстрая, дешёвая, понимает русский)
+    //   2. Llama 3.3 70B Instruct — крепкий fallback с поддержкой ru
+    //   3. Mistral Small — лёгкий бекап если оба выше упадут
+    //
+    // Все три не блокируют российские IP. Цена в пределах одного порядка.
+    const MODEL_FALLBACKS = [
+        "google/gemini-2.0-flash-001",
+        "meta-llama/llama-3.3-70b-instruct",
+        "mistralai/mistral-small-3.2-24b-instruct",
+    ];
+
     let response;
     try {
         response = await fetch(OPENROUTER_URL, {
@@ -161,11 +177,15 @@ module.exports.handler = async function (event, context) {
                 "X-Title": "ZalAssist",
             },
             body: JSON.stringify({
-                model: "google/gemini-2.0-flash-001",
+                model: MODEL_FALLBACKS[0],
+                models: MODEL_FALLBACKS,
                 messages,
                 stream: false,
                 max_tokens: 1500,
                 temperature: 0.3,
+                // route: "fallback" — при ошибке провайдера автоматически переключаемся
+                // на следующую модель из `models`. Спасает от 504 у Gemini, rate-limit и пр.
+                route: "fallback",
             }),
         });
     } catch {
