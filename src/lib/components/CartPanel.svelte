@@ -81,7 +81,7 @@
 			{/if}
 
 			<div class="flex flex-col gap-2">
-				<!-- Главная: нативное системное «Поделиться» (WhatsApp/AirDrop/почта/заметки — выбирает клиент) -->
+				<!-- Главная: нативное системное «Поделиться» — клиент выбирает куда (WhatsApp/AirDrop/почта/заметки) -->
 				<button class="btn btn-primary w-full gap-2 min-h-[48px]"
 					onclick={handleShare}>
 					{#if shareState === "shared"}
@@ -92,14 +92,6 @@
 						<Share2 size={18} /> {hasNativeShare ? "Поделиться" : "Скопировать список"}
 					{/if}
 				</button>
-
-				<!-- Прямой канал к отделу продаж — запасной вариант, не зависит от выбора клиента -->
-				<a href="https://wa.me/74012555514?text={encodeURIComponent(cart.formatText())}"
-					target="_blank" rel="noopener"
-					class="btn btn-success w-full gap-2 min-h-[44px]"
-					onclick={() => haptics.tap()}>
-					<Send size={18} /> Отправить менеджеру
-				</a>
 
 				<button class="btn btn-ghost min-h-[44px]"
 					onclick={() => { haptics.tap(); cart.clear(); }}>

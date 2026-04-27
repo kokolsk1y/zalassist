@@ -60,8 +60,17 @@ export function cartClear() {
 
 export function formatCartText(items) {
 	if (items.length === 0) return "";
-	const lines = items.map(i =>
-		`${i.article} — ${i.name}${i.qty > 1 ? " (" + i.qty + " " + (i.unit || "шт") + ")" : ""}`
-	);
-	return "Список товаров:\n" + lines.join("\n");
+	// Формат заточен под пересылку менеджеру: артикул на отдельной строке
+	// (легко копируется double-tap), количество × единица сразу за ним,
+	// название мельче на следующей строке для контекста.
+	const blocks = items.map((i, idx) => {
+		const qty = `${i.qty} ${i.unit || "шт"}`;
+		const head = `${idx + 1}. ${i.article}  ×  ${qty}`;
+		return i.name ? `${head}\n   ${i.name}` : head;
+	});
+	const header = "Подбор ЭлектроЦентр";
+	const total = items.length === 1
+		? "1 позиция"
+		: `${items.length} ${items.length < 5 ? "позиции" : "позиций"}`;
+	return `${header}\n\n${blocks.join("\n\n")}\n\n— Всего ${total} —`;
 }

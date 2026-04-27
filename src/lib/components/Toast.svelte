@@ -11,7 +11,7 @@
 	<button
 		type="button"
 		class="toast-pill {toast.type}"
-		onclick={() => toast.hide()}
+		onclick={() => toast.triggerAction()}
 		aria-live="polite"
 	>
 		<span class="toast-icon">
@@ -24,6 +24,9 @@
 			{/if}
 		</span>
 		<span class="toast-text">{toast.message}</span>
+		{#if toast.actionLabel}
+			<span class="toast-action">{toast.actionLabel}</span>
+		{/if}
 	</button>
 {/if}
 
@@ -79,6 +82,17 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		flex-shrink: 0;
+	}
+	.toast-action {
+		margin-left: 4px;
+		padding: 4px 10px;
+		border-radius: 9999px;
+		background: color-mix(in oklch, var(--color-base-100) 18%, transparent);
+		font-size: 13px;
+		font-weight: 600;
+		color: oklch(78% 0.18 150);
+		white-space: nowrap;
 		flex-shrink: 0;
 	}
 	/* Цветовые акценты — у иконки, не у фона (фон одинаково тёмный для read-ability) */

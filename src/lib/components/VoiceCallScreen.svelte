@@ -75,6 +75,9 @@
 			if (manualPause) return;
 			if (text && text.trim()) {
 				userPartial = text;
+				// КРИТИЧНО: сбросить internalState чтобы $effect перезапустил listening
+				// после ответа ИИ. Без этого второй цикл диалога не запускается.
+				internalState = "idle";
 				// Передаём текст наверх — родитель установит externalState="thinking"
 				onmessage?.(text.trim());
 			} else if (internalState === "listening") {

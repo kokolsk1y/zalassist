@@ -1,41 +1,34 @@
 <script>
 	import { onMount } from "svelte";
-	import { Sun, Moon, MonitorSmartphone } from "lucide-svelte";
+	import { Sun, Moon } from "lucide-svelte";
 	import { getThemeMode, setThemeMode } from "$lib/utils/theme.js";
 	import * as haptics from "$lib/utils/haptics.js";
 
-	// Циклический переключатель темы: auto → light → dark → auto
-	// Иконка отражает текущий режим. Понятно что будет дальше — текстовая подпись опционально.
+	// Переключатель тёмной темы — простой toggle: светлая ↔ тёмная.
+	// Иконка показывает что СТАНЕТ при тапе (солнце = «переключиться на светлую»,
+	// луна = «переключиться на тёмную»).
 
-	let mode = $state("auto");
+	let mode = $state("light");
 
 	onMount(() => {
 		mode = getThemeMode();
 	});
 
-	function cycle() {
+	function toggle() {
 		haptics.tap();
-		const next = mode === "auto" ? "light" : mode === "light" ? "dark" : "auto";
+		const next = mode === "dark" ? "light" : "dark";
 		mode = next;
 		setThemeMode(next);
 	}
-
-	let label = $derived(
-		mode === "auto" ? "Авто" :
-		mode === "light" ? "Свет" :
-		"Тьма"
-	);
 </script>
 
 <button
 	class="theme-toggle"
-	onclick={cycle}
-	aria-label="Сменить тему: текущая {label}"
-	title="Тема: {label} (тап чтобы переключить)"
+	onclick={toggle}
+	aria-label={mode === "dark" ? "Переключить на светлую тему" : "Переключить на тёмную тему"}
+	title={mode === "dark" ? "Светлая тема" : "Тёмная тема"}
 >
-	{#if mode === "auto"}
-		<MonitorSmartphone size={20} />
-	{:else if mode === "light"}
+	{#if mode === "dark"}
 		<Sun size={20} />
 	{:else}
 		<Moon size={20} />

@@ -10,7 +10,6 @@
 	import { STORE, callPhone, openInMaps, getStoreStatus } from "$lib/data/store-info.js";
 	import { recentlyViewedStore } from "$lib/stores/history.js";
 	import * as haptics from "$lib/utils/haptics.js";
-	import PullToRefresh from "$lib/components/PullToRefresh.svelte";
 	import ThemeToggle from "$lib/components/ThemeToggle.svelte";
 
 	let catalogDate = $state("...");
@@ -144,7 +143,6 @@
 	}
 </script>
 
-<PullToRefresh onrefresh={refresh}>
 <div class="flex-1 flex flex-col items-center px-4 pb-8 pb-nav bg-base-200"
 	style="padding-top: calc(env(safe-area-inset-top, 0px) + 2rem)">
 	<!-- Лого + переключатель темы справа -->
@@ -324,7 +322,6 @@
 		</p>
 	{/if}
 </div>
-</PullToRefresh>
 
 <style>
 	.store-status {

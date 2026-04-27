@@ -170,6 +170,12 @@ body.kb-open .bottom-nav {
 	transition: transform 0.2s ease-out;
 }
 
+/* Real-time drag для свайп-навигации: main следует за пальцем по горизонтали.
+   --swipe-dx ставит swipe-nav.js пока пользователь тянет; на отпускании сбрасывается. */
+main {
+	transform: translateX(var(--swipe-dx, 0px));
+}
+
 /* iOS: если font-size input < 16px — браузер делает zoom при фокусе.
    Минимум 16px для всех полей ввода чтобы избежать нежелательного зума. */
 @supports (-webkit-touch-callout: none) {

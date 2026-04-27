@@ -8,10 +8,18 @@
 
 	let { product, inCart = false, onclose, onadd, onremove, onview } = $props();
 	let dialog;
+	let armed = $state(false); // Кнопки активны только когда armed=true (защита от ложного клика после long-press)
 
 	$effect(() => {
-		if (product && dialog) dialog.showModal();
-		else if (!product && dialog) dialog.close();
+		if (product && dialog) {
+			dialog.showModal();
+			armed = false;
+			// Игнорируем первый клик после открытия — это «отпускание пальца» от long-press,
+			// иначе сразу срабатывает первая кнопка под пальцем
+			setTimeout(() => { armed = true; }, 350);
+		} else if (!product && dialog) {
+			dialog.close();
+		}
 	});
 
 	async function handleShare() {
@@ -58,24 +66,24 @@
 			<div class="border-t border-base-200 mt-2"></div>
 
 			<div class="action-list">
-				<button class="action-item" onclick={handleView}>
+				<button class="action-item" onclick={handleView} disabled={!armed}>
 					<Eye size={20} class="text-base-content/60" />
 					<span>Подробнее</span>
 				</button>
 
 				{#if inCart}
-					<button class="action-item text-error" onclick={handleRemove}>
+					<button class="action-item text-error" onclick={handleRemove} disabled={!armed}>
 						<X size={20} />
 						<span>Убрать из подбора</span>
 					</button>
 				{:else}
-					<button class="action-item text-primary" onclick={handleAdd}>
+					<button class="action-item text-primary" onclick={handleAdd} disabled={!armed}>
 						<ShoppingCart size={20} />
 						<span>Добавить в подбор</span>
 					</button>
 				{/if}
 
-				<button class="action-item" onclick={handleShare}>
+				<button class="action-item" onclick={handleShare} disabled={!armed}>
 					<Share2 size={20} class="text-base-content/60" />
 					<span>Поделиться</span>
 				</button>

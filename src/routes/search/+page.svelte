@@ -13,6 +13,7 @@
 	import ProductSheet from "$lib/components/ProductSheet.svelte";
 	import ProductActionSheet from "$lib/components/ProductActionSheet.svelte";
 	import VoiceInput from "$lib/components/VoiceInput.svelte";
+	import CategoryIcon from "$lib/components/CategoryIcon.svelte";
 
 	const cart = useCart();
 	let categories = $state([]);
@@ -162,7 +163,12 @@
 
 	function addToCart(product) {
 		cart.add(product);
-		toast.show("✓ Добавлено в список");
+		toast.success("Добавлено в список", {
+			action: {
+				label: "Открыть",
+				onClick: () => window.dispatchEvent(new CustomEvent("zalassist:open-cart")),
+			},
+		});
 	}
 
 	function removeFromCart(id) {
@@ -269,14 +275,15 @@
 					{/each}
 				</div>
 			{/if}
-			<h2 class="text-lg font-bold text-base-content mb-4">Выберите категорию</h2>
-			<div class="flex flex-wrap gap-2">
+			<h2 class="text-lg font-bold text-base-content mb-3">Категории</h2>
+			<div class="grid grid-cols-2 gap-2">
 				{#each categories as cat}
 					<button
 						onclick={() => goto(`${base}/search/?category=${encodeURIComponent(cat)}`)}
-						class="badge badge-lg badge-outline py-3 px-4 cursor-pointer hover:bg-primary hover:text-primary-content transition-colors"
+						class="cat-tile flex items-center gap-3 p-3 bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform text-left min-h-[64px]"
 					>
-						{cat}
+						<CategoryIcon category={cat} size={28} withBg={true} />
+						<span class="text-sm font-medium leading-tight flex-1">{cat}</span>
 					</button>
 				{/each}
 			</div>

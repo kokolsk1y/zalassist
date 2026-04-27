@@ -24,12 +24,15 @@
 	let swipeDirection = $state("none"); // "left" | "right" | "none" — для View Transitions
 
 	function currentTabIndex() {
-		const path = page.url?.pathname || "";
-		// Главная — точное совпадение или /zalassist/ для prod
-		if (path === SWIPE_TABS[0] || path === `${base}` || path === "/" || path === `${base}/`) return 0;
-		if (path.startsWith(`${base}/search`)) return 1;
-		if (path.startsWith(`${base}/chat`)) return 2;
-		return -1; // не на одном из основных табов
+		const raw = page.url?.pathname || "";
+		// Нормализуем — убираем trailing slash для предсказуемого сравнения
+		const path = raw.replace(/\/+$/, "") || "/";
+		const baseClean = base.replace(/\/+$/, "");
+		// Главная: пустой base + "/" или просто "/zalassist"
+		if (path === baseClean || path === "/" || path === `${baseClean}`) return 0;
+		if (path.startsWith(`${baseClean}/search`)) return 1;
+		if (path.startsWith(`${baseClean}/chat`)) return 2;
+		return -1;
 	}
 
 	function navigateTab(delta) {
@@ -104,9 +107,14 @@
 			isAllowed: () => currentTabIndex() >= 0, // только когда на одном из табов
 		});
 
+		// Открытие корзины через CustomEvent (тап по toast «Добавлено» → «Открыть»)
+		const onOpenCart = () => { showCart = true; };
+		window.addEventListener("zalassist:open-cart", onOpenCart);
+
 		return () => {
 			document.removeEventListener("focusin", onFocusIn);
 			document.removeEventListener("focusout", onFocusOut);
+			window.removeEventListener("zalassist:open-cart", onOpenCart);
 			detachSwipe();
 			detachTheme();
 		};

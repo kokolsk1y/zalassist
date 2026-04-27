@@ -1,70 +1,128 @@
 // Свайп влево/вправо для навигации между основными разделами.
-// Touch events — работает идентично на всех браузерах (Chrome, Safari, Firefox,
-// Yandex Browser на Android и iOS — везде через единый Pointer/Touch Events).
+// Real-time drag: контент следует за пальцем (через CSS-переменную --swipe-dx),
+// при отпускании — либо переход на соседний таб, либо откат на 0.
 //
-// Принцип:
-//   - Слушаем pointerdown на window, накапливаем дельту до pointerup.
-//   - Если |dx| > threshold И |dx| > |dy| × 1.5 (горизонтальный жест) → переход.
-//   - Игнорируем: если открыта модалка/диалог, текстовый ввод в фокусе, первые 30px от края.
-//
-// Возвращает функцию-отписку (для onMount → onDestroy).
+// Игнорируется когда:
+//   - стартовая точка внутри элемента с горизонтальным скроллом (overflow-x: auto/scroll)
+//     или его родителей — там нативный скролл важнее
+//   - открыта модалка/диалог
+//   - в фокусе input/textarea
+//   - стартовая точка в первых 30px от края (системный жест iOS)
 
-const SWIPE_THRESHOLD = 70; // px — минимальная дельта для срабатывания
-const HORIZ_RATIO = 1.5; // dx должно быть в N раз больше dy
-const EDGE_GUARD = 30; // px от края экрана — там системные жесты iOS «назад в Safari»
+const SWIPE_THRESHOLD = 80; // px — нужно проехать чтобы переход
+const HORIZ_RATIO = 1.4;    // dx должно быть в N раз больше dy
+const EDGE_GUARD = 24;      // px от края — там системные жесты iOS
+const MAX_DRAG = 120;       // px — потолок сопротивления (ниже не растягиваем)
+
+function isInsideHorizontalScroll(el) {
+	let n = el;
+	while (n && n !== document.body) {
+		const cs = getComputedStyle(n);
+		const ox = cs.overflowX;
+		if ((ox === "auto" || ox === "scroll") && n.scrollWidth > n.clientWidth) return true;
+		n = n.parentElement;
+	}
+	return false;
+}
 
 export function attachSwipeNav({ onLeft, onRight, isAllowed = () => true } = {}) {
 	if (typeof window === "undefined") return () => {};
 
 	let startX = 0;
 	let startY = 0;
+	let lastX = 0;
 	let tracking = false;
+	let decided = false; // решили что это горизонтальный жест
+	let cancelled = false;
 
-	function onStart(e) {
-		// Только основной палец (не multi-touch — оставляем pinch-zoom фото)
+	function setOffset(px) {
+		document.documentElement.style.setProperty("--swipe-dx", `${px}px`);
+	}
+	function clearOffset() {
+		document.documentElement.style.removeProperty("--swipe-dx");
+	}
+
+	function onDown(e) {
 		if (e.pointerType === "mouse" && e.button !== 0) return;
 		if (!isAllowed()) return;
 
-		// В фокусе ввод — пользователь печатает или редактирует, не дёргаем
 		const active = document.activeElement;
 		if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) return;
-
-		// Открыта модалка/диалог — не перехватываем (свайп нужен для закрытия модалки изнутри)
 		if (document.querySelector("dialog[open], .modal[open]")) return;
-
-		// Свайп от самой кромки экрана = системный «назад» на iOS — пропускаем
 		if (e.clientX < EDGE_GUARD || e.clientX > window.innerWidth - EDGE_GUARD) return;
+
+		// Стартовая точка внутри горизонтально-скроллируемого контейнера — там скролл важнее
+		const target = e.target;
+		if (target && isInsideHorizontalScroll(target)) return;
 
 		startX = e.clientX;
 		startY = e.clientY;
+		lastX = e.clientX;
 		tracking = true;
+		decided = false;
+		cancelled = false;
 	}
 
-	function onEnd(e) {
+	function onMove(e) {
+		if (!tracking) return;
+		const dx = e.clientX - startX;
+		const dy = e.clientY - startY;
+		lastX = e.clientX;
+
+		// Решаем направление пока не зафиксировано
+		if (!decided) {
+			// Слишком вертикально — это скролл, отменяем
+			if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) / HORIZ_RATIO) {
+				tracking = false;
+				cancelled = true;
+				clearOffset();
+				return;
+			}
+			if (Math.abs(dx) > 8) decided = true;
+		}
+
+		if (decided) {
+			// Сопротивление: чем дальше, тем тяжелее (как iOS)
+			const eased = Math.sign(dx) * Math.min(MAX_DRAG, Math.abs(dx) * 0.6);
+			setOffset(eased);
+		}
+	}
+
+	function onUp() {
+		if (cancelled) { cancelled = false; return; }
 		if (!tracking) return;
 		tracking = false;
-		const dx = e.clientX - startX;
-		const dy = Math.abs(e.clientY - startY);
+		const dx = lastX - startX;
 
-		// Горизонтальное намерение должно быть выраженным (иначе это скролл)
+		// Анимация-возврат к 0 (даже если переходим — целевая страница пере-рендерится)
+		document.documentElement.style.transition = "--swipe-dx 0.18s ease-out";
+		clearOffset();
+		setTimeout(() => { document.documentElement.style.transition = ""; }, 220);
+
+		if (!decided) return;
 		if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-		if (Math.abs(dx) < dy * HORIZ_RATIO) return;
 
-		// Свайп влево (палец двигался влево) → следующий раздел
-		// Свайп вправо (палец двигался вправо) → предыдущий раздел
 		if (dx < 0) onLeft?.();
 		else onRight?.();
 	}
 
-	function onCancel() { tracking = false; }
+	function onCancel() {
+		tracking = false;
+		decided = false;
+		cancelled = false;
+		clearOffset();
+	}
 
-	window.addEventListener("pointerdown", onStart);
-	window.addEventListener("pointerup", onEnd);
+	window.addEventListener("pointerdown", onDown);
+	window.addEventListener("pointermove", onMove);
+	window.addEventListener("pointerup", onUp);
 	window.addEventListener("pointercancel", onCancel);
 
 	return () => {
-		window.removeEventListener("pointerdown", onStart);
-		window.removeEventListener("pointerup", onEnd);
+		window.removeEventListener("pointerdown", onDown);
+		window.removeEventListener("pointermove", onMove);
+		window.removeEventListener("pointerup", onUp);
 		window.removeEventListener("pointercancel", onCancel);
+		clearOffset();
 	};
 }

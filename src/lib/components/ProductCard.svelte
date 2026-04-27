@@ -1,7 +1,6 @@
 <script>
-	import { Check, Plus, PackageOpen } from "lucide-svelte";
+	import { Check, Plus, PackageOpen, Flame } from "lucide-svelte";
 	import * as haptics from "$lib/utils/haptics.js";
-	import CategoryIcon from "./CategoryIcon.svelte";
 
 	let { product, onselect, onadd, onremove, onlongpress, inCart = false } = $props();
 
@@ -107,16 +106,12 @@
 			<PackageOpen size={28} class="text-base-content/20" />
 		{/if}
 
-		<!-- Маленькая иконка категории stv39 — поверх фото, верх-лево -->
-		{#if product.category}
-			<span class="absolute top-0.5 left-0.5">
-				<CategoryIcon category={product.category} size={16} withBg={true} />
-			</span>
-		{/if}
-
-		<!-- Бейдж скидки (если есть oldPrice) -->
+		<!-- Бейдж скидки — диагональная угловая лента с пламенем при сильной скидке -->
 		{#if discount > 0}
-			<span class="absolute bottom-0 right-0 bg-error text-error-content text-[10px] font-bold px-1.5 py-0.5 rounded-tl-md">
+			<span class="discount-badge" class:hot={discount >= 20} aria-label="Скидка {discount}%">
+				{#if discount >= 20}
+					<Flame size={10} class="discount-flame" />
+				{/if}
 				−{discount}%
 			</span>
 		{/if}
@@ -198,4 +193,31 @@
 		transition: transform 0.15s ease, background 0.15s ease;
 	}
 	.add-btn:active { transform: scale(0.88); }
+
+	/* Бейдж скидки — sticker-стиль с градиентом и лёгким наклоном */
+	.discount-badge {
+		position: absolute;
+		top: 6px;
+		left: -4px;
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+		padding: 3px 8px 3px 7px;
+		font-size: 10px;
+		font-weight: 800;
+		letter-spacing: 0.02em;
+		color: white;
+		background: linear-gradient(135deg, oklch(62% 0.18 25), oklch(56% 0.22 18));
+		border-radius: 4px 8px 8px 4px;
+		box-shadow: 0 4px 10px -3px rgba(220, 38, 38, 0.45);
+		transform: rotate(-4deg);
+		text-shadow: 0 1px 0 rgba(0,0,0,0.15);
+	}
+	.discount-badge.hot {
+		background: linear-gradient(135deg, oklch(72% 0.20 50), oklch(62% 0.22 25));
+		box-shadow: 0 4px 12px -2px rgba(255, 100, 30, 0.55);
+	}
+	:global(.discount-flame) {
+		color: oklch(98% 0.05 80);
+	}
 </style>
