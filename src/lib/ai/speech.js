@@ -5,6 +5,8 @@
 let _voicesLoaded = false;
 let _ruVoice = null;
 
+const VOICE_PREF_KEY = "zalassist-voice-name";
+
 function ensureVoices() {
 	if (typeof window === "undefined" || _voicesLoaded) return;
 	const synth = window.speechSynthesis;
@@ -15,12 +17,62 @@ function ensureVoices() {
 		synth.addEventListener("voiceschanged", ensureVoices, { once: true });
 		return;
 	}
-	// Приоритет: ru-RU > просто содержит "ru" в lang/name
-	_ruVoice =
-		voices.find((v) => v.lang === "ru-RU") ||
-		voices.find((v) => v.lang?.startsWith("ru")) ||
-		voices.find((v) => /russian|русск/i.test(v.name));
+	// Сохранённый пользователем выбор (если есть)
+	let savedName = null;
+	try { savedName = localStorage.getItem(VOICE_PREF_KEY); } catch {}
+	const saved = savedName ? voices.find((v) => v.name === savedName) : null;
+	// Приоритет: сохранённый > ru-RU > содержит "ru" > по имени russian/русск
+	_ruVoice = saved
+		|| voices.find((v) => v.lang === "ru-RU")
+		|| voices.find((v) => v.lang?.startsWith("ru"))
+		|| voices.find((v) => /russian|русск/i.test(v.name));
 	_voicesLoaded = true;
+}
+
+// Получить список доступных русских голосов — для выбора пользователем.
+// Возвращает [{name, lang, gender?}, ...]. Может быть пусто на ранней загрузке.
+export function getRussianVoices() {
+	if (typeof window === "undefined" || !window.speechSynthesis) return [];
+	ensureVoices();
+	const voices = window.speechSynthesis.getVoices();
+	return voices
+		.filter((v) => v.lang?.startsWith("ru") || /russian|русск/i.test(v.name))
+		.map((v) => ({
+			name: v.name,
+			lang: v.lang,
+			default: v.default,
+		}));
+}
+
+// Имя текущего выбранного голоса (для подсветки в UI)
+export function getCurrentVoiceName() {
+	ensureVoices();
+	return _ruVoice?.name || null;
+}
+
+// Сменить голос — сохраняем в localStorage и применяем сразу
+export function setVoiceByName(name) {
+	if (typeof window === "undefined" || !window.speechSynthesis) return false;
+	const voices = window.speechSynthesis.getVoices();
+	const found = voices.find((v) => v.name === name);
+	if (!found) return false;
+	_ruVoice = found;
+	try { localStorage.setItem(VOICE_PREF_KEY, name); } catch {}
+	return true;
+}
+
+// Тест-озвучка для preview-кнопки в выборе голоса
+export function previewVoice(voiceName, sample = "Привет, я помощник ЭлектроЦентра. Спрашивайте о товарах.") {
+	if (typeof window === "undefined" || !window.speechSynthesis) return;
+	cancelSpeech();
+	const voices = window.speechSynthesis.getVoices();
+	const voice = voices.find((v) => v.name === voiceName);
+	if (!voice) return;
+	const utter = new SpeechSynthesisUtterance(sample);
+	utter.voice = voice;
+	utter.lang = voice.lang;
+	utter.rate = 1.05;
+	window.speechSynthesis.speak(utter);
 }
 
 // Очистка текста перед озвучиванием — markdown, артикулы, маркеры,
@@ -113,6 +165,33 @@ export function cancelSpeech() {
 
 export function isSpeechSupported() {
 	return typeof window !== "undefined" && !!window.speechSynthesis;
+}
+
+// iOS Safari (включая standalone PWA) блокирует первый speak() если он
+// не вызван прямо в обработчике user gesture. Чтобы решить это, при
+// нажатии на кнопку «Голос» нужно сразу запустить «пустое» высказывание
+// — это активирует TTS-канал на текущей сессии. Дальше speak() работает
+// в любой момент, в том числе после async network-вызовов.
+export function primeSpeech() {
+	if (!isSpeechSupported()) return;
+	try {
+		const synth = window.speechSynthesis;
+		// Резюмируем (на iOS Safari speech synthesis может быть приостановлен)
+		if (synth.paused) synth.resume();
+		// Очень короткое и тихое высказывание для активации канала
+		const utter = new SpeechSynthesisUtterance(" ");
+		utter.volume = 0;
+		utter.rate = 10;
+		synth.speak(utter);
+	} catch {}
+}
+
+// Определяем платформу — нужно для решений типа "на iOS не запускать
+// barge-in потому что getUserMedia глушит динамик через earpiece".
+export function isIOS() {
+	if (typeof navigator === "undefined") return false;
+	const ua = navigator.userAgent;
+	return /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 // Озвучить текст по предложениям — для синхронизации с UI/прерыванием.

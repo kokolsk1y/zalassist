@@ -372,9 +372,6 @@
 				</button>
 			{/if}
 
-			<p class="text-xs text-base-content/60 text-center mt-6 mb-4">
-				Наличие и цены уточняйте у консультанта
-			</p>
 		{/if}
 	</div>
 </div>

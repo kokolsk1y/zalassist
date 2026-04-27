@@ -5,7 +5,8 @@
 	import { loadCatalog, getCatalogDate } from "$lib/data/catalog.js";
 	import { createSearchEngine } from "$lib/search/engine.js";
 	import VoiceInput from "$lib/components/VoiceInput.svelte";
-	import { Search, MessageSquare, Zap, Lightbulb, Plug, Wrench, Cable, Shield, Phone, MapPin, Clock, PackageOpen } from "lucide-svelte";
+	import { Search, MessageSquare, Phone, MapPin, Clock, PackageOpen } from "lucide-svelte";
+	import CategoryIcon from "$lib/components/CategoryIcon.svelte";
 	import { STORE, callPhone, openInMaps, getStoreStatus } from "$lib/data/store-info.js";
 	import { recentlyViewedStore } from "$lib/stores/history.js";
 	import * as haptics from "$lib/utils/haptics.js";
@@ -28,13 +29,15 @@
 		"Гофра 20мм...",
 	];
 
+	// Категории на главной — те же иконки что использует магазин на stv39.ru,
+	// чтобы у клиентов было ощущение «то же приложение, тот же магазин».
 	const categories = [
-		{ label: "Автоматика", icon: Shield, query: "Автоматика и Щиты" },
-		{ label: "Кабель", icon: Cable, query: "Кабель и провод" },
-		{ label: "Освещение", icon: Lightbulb, query: "Лампы" },
-		{ label: "Розетки", icon: Plug, query: "Розетки и выключатели" },
-		{ label: "Инструмент", icon: Wrench, query: "Инструмент ручной" },
-		{ label: "Монтаж", icon: Zap, query: "Электромонтаж" },
+		{ label: "Автоматика", category: "Автоматика и Щиты" },
+		{ label: "Кабель", category: "Кабель и провод" },
+		{ label: "Освещение", category: "Лампы" },
+		{ label: "Розетки", category: "Розетки и выключатели" },
+		{ label: "Инструмент", category: "Инструмент ручной" },
+		{ label: "Монтаж", category: "Электромонтаж" },
 	];
 
 	function getGreeting() {
@@ -213,14 +216,14 @@
 		</div>
 	</form>
 
-	<!-- Категории — визуальная сетка -->
+	<!-- Категории — визуальная сетка с фирменными иконками stv39 -->
 	<div class="w-full max-w-md grid grid-cols-3 gap-3 mb-2">
 		{#each categories as cat}
 			<button
-				onclick={() => goto(`${base}/search/?category=${encodeURIComponent(cat.query)}`)}
-				class="flex flex-col items-center gap-2 p-4 bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform min-h-[80px]"
+				onclick={() => goto(`${base}/search/?category=${encodeURIComponent(cat.category)}`)}
+				class="flex flex-col items-center gap-2 p-3 bg-base-100 rounded-xl shadow-sm active:scale-[0.97] transition-transform min-h-[88px]"
 			>
-				<cat.icon size={24} class="text-primary" />
+				<CategoryIcon category={cat.category} size={32} />
 				<span class="text-sm font-medium text-base-content">{cat.label}</span>
 			</button>
 		{/each}
@@ -307,12 +310,13 @@
 		</a>
 	</div>
 
-	<!-- Статус каталога -->
-	<p class="text-xs text-base-content/50 mt-auto pt-4 flex items-center gap-1.5">
-		<span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-		{catalogCount > 0 ? `${catalogCount.toLocaleString("ru-RU")} товаров` : ""}
-		{#if catalogDate !== "..."} · обновлено {catalogDate}{/if}
-	</p>
+	<!-- Статус каталога — только индикатор «работает», без технических цифр -->
+	{#if catalogCount > 0}
+		<p class="text-xs text-base-content/40 mt-auto pt-4 flex items-center gap-1.5">
+			<span class="w-1.5 h-1.5 rounded-full bg-success"></span>
+			Каталог актуален
+		</p>
+	{/if}
 </div>
 </PullToRefresh>
 

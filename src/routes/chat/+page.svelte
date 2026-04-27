@@ -7,9 +7,11 @@
 	import { formatCatalogForAI, selectItemsForAI } from "$lib/ai/prompt.js";
 	import { streamChat } from "$lib/ai/client.js";
 	import { extractProducts } from "$lib/ai/parse.js";
-	import { speakSentences, cancelSpeech, isSpeechSupported } from "$lib/ai/speech.js";
+	import { speakSentences, cancelSpeech, isSpeechSupported, primeSpeech, isIOS } from "$lib/ai/speech.js";
 	import { isRecognitionSupported } from "$lib/ai/recognize.js";
 	import { monitorAudioLevel } from "$lib/utils/audio-level.js";
+
+	const isIosDevice = isIOS();
 	import { createSearchEngine } from "$lib/search/engine.js";
 	import { cartStore, cartAdd, cartRemove } from "$lib/stores/cart.js";
 	import * as haptics from "$lib/utils/haptics.js";
@@ -197,6 +199,9 @@
 	function openCall() {
 		if (!voiceSupported) return;
 		haptics.tap();
+		// КРИТИЧНО: pre-warm TTS прямо в click-handler, иначе iOS заблокирует
+		// первый speak() который придёт после async ответа от ИИ.
+		primeSpeech();
 		callLastError = "";
 		callLastReply = "";
 		callState = "idle";
@@ -222,21 +227,23 @@
 		callState = "speaking";
 		callLastReply = replyText;
 
-		// Barge-in: пока говорим, параллельно мониторим микрофон.
-		// Если уровень громкости пользователя высокий — обрываем TTS и слушаем заново.
-		stopBargeIn?.();
-		stopBargeIn = await monitorAudioLevel({
-			threshold: 0.08,
-			onSpeech: () => {
-				if (callState === "speaking") {
-					cancelSpeech();
-					stopBargeIn?.();
-					stopBargeIn = null;
-					// После cancel speakSentences завершится, callState уйдёт в idle —
-					// VoiceCallScreen сам перезапустит listening через $effect
-				}
-			},
-		});
+		// Barge-in (мониторинг микрофона во время речи) ВКЛЮЧАЕМ ТОЛЬКО на Android.
+		// На iOS getUserMedia переключает аудио на earpiece (наушник у уха) вместо
+		// громкого динамика — пользователь не слышит ИИ. Поэтому на iOS используем
+		// tap-to-interrupt (тык в круг прерывает речь — обрабатывается в VoiceCallScreen).
+		if (!isIosDevice) {
+			stopBargeIn?.();
+			stopBargeIn = await monitorAudioLevel({
+				threshold: 0.08,
+				onSpeech: () => {
+					if (callState === "speaking") {
+						cancelSpeech();
+						stopBargeIn?.();
+						stopBargeIn = null;
+					}
+				},
+			});
+		}
 
 		await speakSentences(replyText, {
 			rate: 1.05,
@@ -247,6 +254,16 @@
 		stopBargeIn?.();
 		stopBargeIn = null;
 		if (callOpen) callState = "idle"; // VoiceCallScreen сам начнёт слушать
+	}
+
+	// Tap-to-interrupt: пользователь тыкнул в круг во время speaking — прерываем
+	function interruptSpeech() {
+		if (callState !== "speaking") return;
+		haptics.tap();
+		cancelSpeech();
+		stopBargeIn?.();
+		stopBargeIn = null;
+		callState = "idle"; // VoiceCallScreen сам перезапустит listening
 	}
 
 	function handleAdd(product) { cartAdd(product); }
@@ -271,7 +288,7 @@
 		<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]" aria-label="Назад">
 			<ArrowLeft size={22} />
 		</button>
-		<span class="text-lg font-bold ml-2 flex-1">Подбор под задачу</span>
+		<span class="text-lg font-bold ml-2 flex-1">AI-помощник</span>
 		{#if voiceSupported}
 			<button
 				class="btn btn-ghost gap-1 min-h-[44px] px-3 text-base-content/70"
@@ -287,16 +304,16 @@
 
 	<div class="flex-1 overflow-y-auto p-4 space-y-2" bind:this={chatContainer}>
 		{#if messages.length === 0}
-			<div class="text-center text-base-content/50 mt-8">
-				<div class="flex justify-center mb-2 opacity-50">
-					<MessageSquare size={32} />
+			<div class="text-center mt-12 px-6">
+				<div class="flex justify-center mb-4">
+					<div class="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+						<MessageSquare size={32} />
+					</div>
 				</div>
-				<p>Опишите задачу или выберите подсказку</p>
-				{#if voiceSupported}
-					<p class="text-xs mt-3 opacity-70">
-						Можно просто <strong>удерживать микрофон</strong> и говорить
-					</p>
-				{/if}
+				<h2 class="text-lg font-semibold mb-2">Расскажите задачу</h2>
+				<p class="text-sm text-base-content/60 leading-relaxed">
+					Опишите что нужно — соберу список товаров.{#if voiceSupported}<br/>Можно говорить голосом — удерживайте микрофон.{/if}
+				</p>
 			</div>
 		{/if}
 
@@ -323,10 +340,6 @@
 			disabled={isLoading}
 		/>
 	{/if}
-
-	<p class="text-xs text-base-content/60 text-center px-4">
-		Наличие и цены уточняйте у консультанта
-	</p>
 
 	<div class="p-3 bg-base-100 border-t border-base-300 flex gap-2 items-end safe-bottom">
 		<textarea
@@ -379,5 +392,6 @@
 		lastError={callLastError}
 		onmessage={handleCallMessage}
 		onclose={closeCall}
+		oninterrupt={interruptSpeech}
 	/>
 {/if}
