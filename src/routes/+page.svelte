@@ -11,6 +11,7 @@
 	import { recentlyViewedStore } from "$lib/stores/history.js";
 	import * as haptics from "$lib/utils/haptics.js";
 	import PullToRefresh from "$lib/components/PullToRefresh.svelte";
+	import ThemeToggle from "$lib/components/ThemeToggle.svelte";
 
 	let catalogDate = $state("...");
 	let catalogCount = $state(0);
@@ -146,10 +147,15 @@
 <PullToRefresh onrefresh={refresh}>
 <div class="flex-1 flex flex-col items-center px-4 pb-8 pb-nav bg-base-200"
 	style="padding-top: calc(env(safe-area-inset-top, 0px) + 2rem)">
-	<!-- Лого -->
-	<div class="mb-3 text-center">
-		<img src="{base}/logo.png" alt="ЭлектроЦентр" width="443" height="99" class="h-10 w-auto mx-auto mb-2 rounded-lg bg-white px-3 py-1 shadow-sm" />
-		<p class="text-sm text-base-content/70">Помощник в торговом зале</p>
+	<!-- Лого + переключатель темы справа -->
+	<div class="w-full max-w-md mb-3 relative">
+		<div class="text-center">
+			<img src="{base}/logo.png" alt="ЭлектроЦентр" width="443" height="99" class="h-10 w-auto mx-auto mb-2 rounded-lg bg-white px-3 py-1 shadow-sm" />
+			<p class="text-sm text-base-content/70">Помощник в торговом зале</p>
+		</div>
+		<div class="absolute top-0 right-0">
+			<ThemeToggle />
+		</div>
 	</div>
 
 	<!-- Живой индикатор: магазин открыт или закрыт сейчас -->

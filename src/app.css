@@ -36,6 +36,44 @@
 	--animation-input: 0.2s;
 }
 
+/* === Тёмная тема — для вечернего использования и системного prefers-color-scheme === */
+@plugin "daisyui/theme" {
+	name: "electrocentr-dark";
+	prefersdark: true;
+	color-scheme: dark;
+
+	/* Primary немного светлее чтобы читалось на тёмном */
+	--color-primary: oklch(62% 0.14 255);
+	--color-primary-content: oklch(98% 0.005 255);
+
+	--color-secondary: oklch(68% 0.18 30);
+	--color-secondary-content: oklch(15% 0.02 30);
+
+	--color-accent: oklch(75% 0.04 260);
+	--color-accent-content: oklch(15% 0.02 260);
+
+	--color-neutral: oklch(25% 0.02 260);
+	--color-neutral-content: oklch(95% 0.01 260);
+
+	/* Базовые: тёмно-серый ≠ чёрный (чтобы карточки выделялись) */
+	--color-base-100: oklch(20% 0.012 250);
+	--color-base-200: oklch(16% 0.012 250);
+	--color-base-300: oklch(28% 0.015 250);
+	--color-base-content: oklch(94% 0.005 250);
+
+	--color-info: oklch(70% 0.15 248);
+	--color-success: oklch(70% 0.16 150);
+	--color-warning: oklch(78% 0.14 80);
+	--color-error: oklch(68% 0.18 25);
+
+	--rounded-box: 12px;
+	--rounded-btn: 12px;
+	--rounded-badge: 999px;
+
+	--animation-btn: 0.2s;
+	--animation-input: 0.2s;
+}
+
 @layer base {
 	html {
 		font-family: "Inter", sans-serif;
@@ -165,4 +203,66 @@ body.kb-open .bottom-nav {
 	.aisle-badge, .badge {
 		border-width: 2px !important;
 	}
+}
+
+/* === View Transitions API ===
+   Поддерживается: Chrome 111+, Edge 111+, Safari 18+, Yandex Browser (Chromium-base).
+   На неподдерживающих браузерах (Safari <18, Firefox, старые) document.startViewTransition
+   просто отсутствует — мы это проверяем в JS и не запускаем переход; CSS ниже не применяется,
+   ничего не ломается.
+
+   Свайп влево (вперёд) — новая страница въезжает справа, старая уезжает влево.
+   Свайп вправо (назад) — наоборот.
+   Без свайпа (тык по табу) — fade. */
+
+/* Более короткие переходы при системной настройке reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation-duration: 0.28s;
+		animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+	}
+
+	/* Свайп влево = следующий раздел: старая уезжает влево, новая въезжает справа */
+	html[data-view-transition-direction="left"]::view-transition-old(root) {
+		animation-name: slide-out-to-left;
+	}
+	html[data-view-transition-direction="left"]::view-transition-new(root) {
+		animation-name: slide-in-from-right;
+	}
+
+	/* Свайп вправо = предыдущий раздел: наоборот */
+	html[data-view-transition-direction="right"]::view-transition-old(root) {
+		animation-name: slide-out-to-right;
+	}
+	html[data-view-transition-direction="right"]::view-transition-new(root) {
+		animation-name: slide-in-from-left;
+	}
+
+	/* Без направления (клик по табу, навигация через goto) — простой fade */
+	html[data-view-transition-direction="none"]::view-transition-old(root) {
+		animation-name: vt-fade-out;
+	}
+	html[data-view-transition-direction="none"]::view-transition-new(root) {
+		animation-name: vt-fade-in;
+	}
+}
+
+@keyframes slide-out-to-left {
+	to { transform: translateX(-30%); opacity: 0; }
+}
+@keyframes slide-in-from-right {
+	from { transform: translateX(100%); opacity: 0.4; }
+}
+@keyframes slide-out-to-right {
+	to { transform: translateX(30%); opacity: 0; }
+}
+@keyframes slide-in-from-left {
+	from { transform: translateX(-100%); opacity: 0.4; }
+}
+@keyframes vt-fade-out {
+	to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+	from { opacity: 0; }
 }
