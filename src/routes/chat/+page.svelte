@@ -282,8 +282,8 @@
 	}
 </script>
 
-<div class="flex flex-col h-[calc(100dvh-56px-env(safe-area-inset-bottom,0px))] bg-base-200">
-	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2"
+<div class="chat-page flex flex-col bg-base-200">
+	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2 flex-shrink-0"
 		style="padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem)">
 		<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]" aria-label="Назад">
 			<ArrowLeft size={22} />
@@ -302,7 +302,7 @@
 		{/if}
 	</div>
 
-	<div class="flex-1 overflow-y-auto p-4 space-y-2" bind:this={chatContainer}>
+	<div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-2" bind:this={chatContainer}>
 		{#if messages.length === 0}
 			<div class="text-center mt-12 px-6">
 				<div class="flex justify-center mb-4">
@@ -395,3 +395,15 @@
 		oninterrupt={interruptSpeech}
 	/>
 {/if}
+
+<style>
+	/* Высота чат-вью завязана на visualViewport (--visual-vh) с фолбэком на 100dvh.
+	   Снизу резервируем место под BottomNav (--reserved-bottom: 56px+safe-area).
+	   Когда body.kb-open — клавиатура поднята, BottomNav скрыт, --reserved-bottom
+	   обнуляется → чат разворачивается на освободившуюся высоту, поле ввода
+	   прижимается к верхней кромке клавиатуры, шапка остаётся на месте. */
+	.chat-page {
+		height: var(--visual-vh, 100dvh);
+		padding-bottom: var(--reserved-bottom, 0px);
+	}
+</style>

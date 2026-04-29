@@ -165,8 +165,23 @@ body {
 	overflow-x: hidden; /* во время свайпа transform мог бы дать горизонтальный скролл */
 }
 
+/* === Адаптивная высота viewport ===
+   --visual-vh JS подставляет из window.visualViewport.height (учитывает клавиатуру
+   точнее, чем 100dvh на iOS Safari — там dvh обновляется не синхронно).
+   Fallback на 100dvh для серверного рендеринга и старых браузеров.
+
+   --reserved-bottom — резерв снизу под BottomNav. При kb-open BottomNav скрыт,
+   обнуляем чтобы chat-вид использовал освободившуюся высоту. */
+:root {
+	--visual-vh: 100dvh;
+	--reserved-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
 /* Когда на input/textarea фокус — прячем нижний навбар, чтобы он не
    перекрывал поле ввода клавиатурой (особенно Android Chrome). */
+body.kb-open {
+	--reserved-bottom: 0px;
+}
 body.kb-open .bottom-nav {
 	transform: translateY(110%);
 }

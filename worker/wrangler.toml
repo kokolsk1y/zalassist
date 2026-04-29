@@ -1,13 +1,11 @@
 name = "zalassist-api"
 main = "index.js"
-compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2025-01-01"
 
-# Rate limiting: 20 requests per IP per hour
-# Note: if unsafe.bindings doesn't work on free tier,
-# fallback to in-memory rate limiting in index.js
-[[unsafe.bindings]]
-name = "RATE_LIMITER"
-type = "ratelimit"
-namespace_id = "1"
-simple = { limit = 20, period = 3600 }
+# Свободный план Cloudflare Workers: 100 000 запросов/день, 10 ms CPU/request.
+# Прокси к OpenRouter — почти весь wall-clock уходит на network wait, а не CPU.
+# При превышении лимита Worker возвращает 429.
+
+# Secrets (задаются через `wrangler secret put`, не лежат в файле):
+#   OPENROUTER_API_KEY  — ключ OpenRouter, тот же что в Yandex Function
+#   PROXY_TOKEN         — shared secret между Yandex CF и Worker для ауth

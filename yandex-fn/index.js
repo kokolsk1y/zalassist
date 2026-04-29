@@ -1,4 +1,10 @@
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+// OpenRouter недоступен напрямую из egress Yandex Cloud Functions (зафиксировано
+// 2026-04-28). Используем Cloudflare Worker как egress-прокси: PWA → Yandex CF
+// (RU ingress, доступен без VPN) → CF Worker (глобальный egress) → OpenRouter.
+// Yandex CF строит prompt и собирает контекст, Worker — тонкий passthrough.
+//
+// PROXY_URL  — задаётся через --environment при деплое функции
+// PROXY_TOKEN — shared secret (тот же что в Worker secret), кладётся в X-Proxy-Token
 
 function buildSystemPrompt(catalog, timeContext) {
     const now = timeContext || {};
@@ -275,15 +281,29 @@ module.exports.handler = async function (event, context) {
         "meta-llama/llama-3.3-70b-instruct",
     ];
 
-    let response;
-    try {
-        response = await fetch(OPENROUTER_URL, {
+    // Гарантированный таймаут на ВЕСЬ pipeline (fetch + headers + body):
+    // Promise.race с setTimeout. CF execution_timeout=60s, оставляем 15s запаса
+    // чтобы вернуть клиенту осмысленный 504, а не молча умереть по платформенному
+    // таймауту. AbortController дополнительно прерывает запрос (освобождает
+    // сетевое соединение), но Promise.race гарантирует что мы вернёмся в любом
+    // случае — даже если undici-fetch в Yandex CF не реагирует на signal.
+    const UPSTREAM_TIMEOUT_MS = 45000;
+    const controller = new AbortController();
+    const t0 = Date.now();
+    const elapsed = () => Date.now() - t0;
+
+    const proxyUrl = process.env.PROXY_URL;
+    const proxyToken = process.env.PROXY_TOKEN;
+    if (!proxyUrl || !proxyToken) {
+        return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Не настроен PROXY_URL/PROXY_TOKEN" }) };
+    }
+
+    const fetchWithDeadline = async () => {
+        const response = await fetch(proxyUrl, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 "Content-Type": "application/json",
-                "HTTP-Referer": "https://kokolsk1y.github.io/zalassist/",
-                "X-Title": "ZalAssist",
+                "X-Proxy-Token": proxyToken,
             },
             body: JSON.stringify({
                 model: MODEL_FALLBACKS[0],
@@ -293,17 +313,45 @@ module.exports.handler = async function (event, context) {
                 max_tokens: 1500,
                 temperature: 0.3,
             }),
+            signal: controller.signal,
         });
-    } catch {
-        return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: "Не удалось подключиться к ИИ-сервису" }) };
+        const status = response.status;
+        if (!response.ok) {
+            const errText = await response.text().catch(() => "");
+            return { kind: "upstream_error", status, errText };
+        }
+        const data = await response.json();
+        return { kind: "ok", text: data.choices?.[0]?.message?.content || "" };
+    };
+
+    let timeoutId;
+    const deadline = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            controller.abort();
+            reject(new Error("upstream_timeout"));
+        }, UPSTREAM_TIMEOUT_MS);
+    });
+
+    let result;
+    try {
+        result = await Promise.race([fetchWithDeadline(), deadline]);
+        clearTimeout(timeoutId);
+    } catch (e) {
+        clearTimeout(timeoutId);
+        const isTimeout = e && (e.message === "upstream_timeout" || e.name === "AbortError");
+        console.log(`[zalassist-api] ${isTimeout ? "timeout" : "fetch_error"}: ${elapsed()}ms ${e && e.message}`);
+        return {
+            statusCode: 504,
+            headers: CORS,
+            body: JSON.stringify({ error: isTimeout ? "ИИ-сервис не ответил вовремя" : "Не удалось подключиться к ИИ-сервису" }),
+        };
     }
 
-    if (!response.ok) {
-        const errText = await response.text().catch(() => "");
-        return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: "ИИ-сервис временно недоступен", status: response.status, detail: errText }) };
+    if (result.kind === "upstream_error") {
+        console.log(`[zalassist-api] upstream_error ${result.status}: ${elapsed()}ms`);
+        return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: "ИИ-сервис временно недоступен", status: result.status, detail: result.errText }) };
     }
 
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "";
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ text }) };
+    console.log(`[zalassist-api] ok: ${elapsed()}ms, ${result.text.length} chars`);
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ text: result.text }) };
 };

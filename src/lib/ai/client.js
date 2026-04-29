@@ -24,7 +24,18 @@ function buildTimeContext() {
 /**
  * Отправить сообщение ИИ.
  * catalogSubset — предварительно отобранные товары (30-50 шт) для промпта.
+ *
+ * Стратегия таймаутов:
+ *   1-я попытка — 50s. Yandex Cloud Function может холодить (cold start ~1-3s)
+ *      + OpenRouter иногда уходит в долгие ответы при fallback на gpt-4o.
+ *      CF-таймаут 60s с запасом покрывает эту попытку.
+ *   2-я попытка — 30s. Функция уже прогрета, отвечает быстро либо никогда.
+ *
+ * Раньше было 3×30s = до 90s ожидания пользователем «таймаут», что бесполезно
+ * — все 3 попытки попадали в один и тот же CF execution_timeout=30s.
  */
+const TIMEOUTS_MS = [50000, 30000];
+
 export function streamChat({ message, history, catalogSubset, onChunk, onDone, onError }) {
 	let cancelled = false;
 
@@ -35,16 +46,17 @@ export function streamChat({ message, history, catalogSubset, onChunk, onDone, o
 			const body = JSON.stringify({ message, history, catalog: catalogSubset, timeContext: buildTimeContext() });
 
 			let data;
-			for (let attempt = 0; attempt < 3; attempt++) {
+			let lastError = null;
+			for (let attempt = 0; attempt < TIMEOUTS_MS.length; attempt++) {
 				if (cancelled) return;
 				if (attempt > 0) {
 					await new Promise(r => setTimeout(r, 1500));
-					onChunk?.("", "Попытка " + (attempt + 1) + "...");
+					onChunk?.("", "Повторная попытка...");
 				}
 
 				try {
 					const controller = new AbortController();
-					const timeout = setTimeout(() => controller.abort(), 30000);
+					const timeout = setTimeout(() => controller.abort(), TIMEOUTS_MS[attempt]);
 
 					const response = await fetch(API_URL, {
 						method: "POST",
@@ -63,16 +75,16 @@ export function streamChat({ message, history, catalogSubset, onChunk, onDone, o
 					}
 
 					data = await response.json();
+					lastError = null;
 					break;
 				} catch (e) {
-					if (e.name === "AbortError") {
-						if (attempt === 2) throw new Error("Таймаут — сервер не ответил");
-					} else if (attempt === 2) {
-						throw e;
-					}
+					lastError = e.name === "AbortError"
+						? new Error("Таймаут — сервер не ответил")
+						: e;
 				}
 			}
 
+			if (lastError) throw lastError;
 			if (cancelled) return;
 
 			const text = data?.text || "";

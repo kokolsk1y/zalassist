@@ -111,6 +111,34 @@
       "status": "pending",
       "approved": true,
       "created": "2026-04-25 00:00"
+    },
+    {
+      "id": 17,
+      "text": "СРОЧНО: OpenRouter не отвечает Yandex Cloud Functions. Локально с тем же ключом OpenRouter работает за секунды, но из CF — fetch висит 60s либо мгновенно падает с fetch_error. Тест на ОРИГИНАЛЬНОМ коде (до правок) — то же самое, значит дело не в коде, а в сети между Yandex egress и openrouter.ai (вероятно блок российских IP-диапазонов на стороне OpenRouter). Решения: (а) прокси через Cloudflare Pages Functions / Workers — у нас уже есть worker-pages/, выходят с не-РФ IP; (б) сменить LLM-провайдера на YandexGPT через Yandex Foundation Models API (внутри облака, нет внешнего egress, но другое качество и цена); (в) подождать — может временный downtime / блокировка. Зафиксировано 2026-04-28 19:00 МСК. До решения — функция технически возвращает корректный 504 за 45s (вместо зависания на 60s), но чат не работает.",
+      "status": "pending",
+      "approved": true,
+      "created": "2026-04-28 19:30"
+    },
+    {
+      "id": 18,
+      "text": "Рефакторинг архитектуры — снизить связность и упростить правки. Кодовая база ~6100 строк, 48 файлов. Главные точки боли: (1) Дублирующий API корзины cart.js (legacy writable, используется в chat) ↔ cart.svelte.js (runes, везде ещё) — источник багов, унифицировать первым шагом; (2) Раздутые route-компоненты с бизнес-логикой: search/+page.svelte (476), VoiceCallScreen.svelte (452), chat/+page.svelte (397), главная (360); (3) speech.js (315) — TTS+voices+sanitize+platform-detect в одном файле; (4) Эвристика «задача vs артикул» (looksLikeTask/CHAT_KEYWORDS) дублируется на главной и в search; (5) Парсер CHIPS живёт в +page.svelte, формат описан в yandex-fn — знание размазано. План: lib/chat/ (chips, persistence, intent), lib/voice/ (tts, voices, asr, call-fsm), lib/search/filters.js+url-params.js+intent.js, lib/utils/platform.js, lib/config/tabs.js. Делать поэтапно (сначала корзина, потом chat-домен, потом voice), не одним PR — каждый шаг отдельно проверять на iOS/Android.",
+      "status": "pending",
+      "approved": true,
+      "created": "2026-04-28 19:30"
+    },
+    {
+      "id": 19,
+      "text": "Багфикс клавиатуры в чате — ✓ ИСПРАВЛЕНО 2026-04-28. Было: на iOS Safari при появлении клавиатуры шапка «AI-помощник» уезжала за верх viewport, поле ввода + чипсы оказывались посередине, в фоне просвечивал BottomNav. Причина — h-[calc(100dvh-56px)] на chat-page + iOS не пересчитывает 100dvh синхронно с visualViewport. Решение: новые CSS-переменные --visual-vh (JS подвязывает к window.visualViewport.height в +layout.svelte) и --reserved-bottom (обнуляется body.kb-open классом), шапке flex-shrink:0, scroll-area min-h-0. Файлы: src/app.css, src/routes/+layout.svelte, src/routes/chat/+page.svelte. Билд прошёл, нужно проверить на реальном iPhone после деплоя.",
+      "status": "done",
+      "approved": true,
+      "created": "2026-04-28 19:30"
+    },
+    {
+      "id": 20,
+      "text": "Багфикс «таймаут чата» (UX-часть) — ✓ ИСПРАВЛЕНО 2026-04-28. Клиентский client.js: было 3 попытки×30s = до 90s ожидания «Таймаут», теперь 2 попытки (50s+30s), убран баг с проглатыванием не-Abort ошибок. Yandex Function: было execution_timeout=30s/concurrency=1/memory=128MB и fetch без таймаута → платформа убивала функцию, клиент видел AbortError. Теперь execution_timeout=60s/concurrency=5/memory=256MB + Promise.race на 45s к OpenRouter с осмысленным 504. ВНИМАНИЕ: сама причина пустых ответов (OpenRouter недоступен из Yandex CF) НЕ устранена — см. задачу #17. Этот фикс только убрал зависание/неинформативные ошибки.",
+      "status": "done",
+      "approved": true,
+      "created": "2026-04-28 19:30"
     }
   ]
 }
