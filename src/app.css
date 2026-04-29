@@ -165,19 +165,8 @@ body {
 	overflow-x: hidden; /* во время свайпа transform мог бы дать горизонтальный скролл */
 }
 
-/* --reserved-bottom — резерв под BottomNav (56px + safe-area). Используется
-   chat-страницей (position:fixed; bottom: var(--reserved-bottom)) чтобы не
-   залазить под навбар. При kb-open BottomNav скрыт (translateY 110%) — отступ
-   обнуляется, чат занимает освободившуюся высоту до верхней кромки клавиатуры. */
-:root {
-	--reserved-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
-}
-
 /* Когда на input/textarea фокус — прячем нижний навбар, чтобы он не
    перекрывал поле ввода клавиатурой (особенно Android Chrome). */
-body.kb-open {
-	--reserved-bottom: 0px;
-}
 body.kb-open .bottom-nav {
 	transform: translateY(110%);
 }
@@ -190,20 +179,6 @@ body.kb-open .bottom-nav {
    чата чтобы input row прижался к клавиатуре без лишнего пространства. */
 body.kb-open .safe-bottom {
 	padding-bottom: 0;
-}
-
-/* Real-time drag для свайп-навигации: main следует за пальцем по горизонтали.
-   ВАЖНО: transform применяется ТОЛЬКО во время свайпа (body.swiping). Иначе
-   transform создаёт новый stacking context и ломает position: fixed внутри
-   страниц — нижний навбар не закрывался бы fullscreen-модалками типа звонка
-   или сканера. */
-body.swiping main {
-	transform: translateX(var(--swipe-dx, 0px));
-	transition: none;
-}
-body.swiping-release main {
-	transform: translateX(0);
-	transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* iOS: если font-size input < 16px — браузер делает zoom при фокусе.
@@ -243,62 +218,21 @@ body.swiping-release main {
 
 /* === View Transitions API ===
    Поддерживается: Chrome 111+, Edge 111+, Safari 18+, Yandex Browser (Chromium-base).
-   На неподдерживающих браузерах (Safari <18, Firefox, старые) document.startViewTransition
-   просто отсутствует — мы это проверяем в JS и не запускаем переход; CSS ниже не применяется,
-   ничего не ломается.
-
-   Свайп влево (вперёд) — новая страница въезжает справа, старая уезжает влево.
-   Свайп вправо (назад) — наоборот.
-   Без свайпа (тык по табу) — fade. */
-
-/* Более короткие переходы при системной настройке reduced motion */
+   На неподдерживающих браузерах startViewTransition отсутствует — fallback без анимации.
+   Простой fade между табами при тапе. */
 @media (prefers-reduced-motion: no-preference) {
 	::view-transition-old(root),
 	::view-transition-new(root) {
-		animation-duration: 0.28s;
+		animation-duration: 0.2s;
 		animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 	}
+	::view-transition-old(root) { animation-name: vt-fade-out; }
+	::view-transition-new(root) { animation-name: vt-fade-in; }
+}
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-fade-in  { from { opacity: 0; } }
 
-	/* Свайп влево = следующий раздел: старая уезжает влево, новая въезжает справа */
-	html[data-view-transition-direction="left"]::view-transition-old(root) {
-		animation-name: slide-out-to-left;
-	}
-	html[data-view-transition-direction="left"]::view-transition-new(root) {
-		animation-name: slide-in-from-right;
-	}
-
-	/* Свайп вправо = предыдущий раздел: наоборот */
-	html[data-view-transition-direction="right"]::view-transition-old(root) {
-		animation-name: slide-out-to-right;
-	}
-	html[data-view-transition-direction="right"]::view-transition-new(root) {
-		animation-name: slide-in-from-left;
-	}
-
-	/* Без направления (клик по табу, навигация через goto) — простой fade */
-	html[data-view-transition-direction="none"]::view-transition-old(root) {
-		animation-name: vt-fade-out;
-	}
-	html[data-view-transition-direction="none"]::view-transition-new(root) {
-		animation-name: vt-fade-in;
-	}
-}
-
-@keyframes slide-out-to-left {
-	to { transform: translateX(-30%); opacity: 0; }
-}
-@keyframes slide-in-from-right {
-	from { transform: translateX(100%); opacity: 0.4; }
-}
-@keyframes slide-out-to-right {
-	to { transform: translateX(30%); opacity: 0; }
-}
-@keyframes slide-in-from-left {
-	from { transform: translateX(-100%); opacity: 0.4; }
-}
-@keyframes vt-fade-out {
-	to { opacity: 0; }
-}
-@keyframes vt-fade-in {
-	from { opacity: 0; }
+/* Скрываем BottomNav на странице чата — она занимает весь viewport */
+body.in-chat .bottom-nav {
+	display: none;
 }

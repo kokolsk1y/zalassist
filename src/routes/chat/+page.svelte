@@ -10,10 +10,8 @@
 	import { speakSentences, cancelSpeech, isSpeechSupported, primeSpeech, isIOS } from "$lib/ai/speech.js";
 	import { isRecognitionSupported } from "$lib/ai/recognize.js";
 	import { monitorAudioLevel } from "$lib/utils/audio-level.js";
-
-	const isIosDevice = isIOS();
 	import { createSearchEngine } from "$lib/search/engine.js";
-	import { cartStore, cartAdd, cartRemove } from "$lib/stores/cart.js";
+	import { useCart } from "$lib/stores/cart.svelte.js";
 	import * as haptics from "$lib/utils/haptics.js";
 	import ChatMessage from "$lib/components/ChatMessage.svelte";
 	import QuickChips from "$lib/components/QuickChips.svelte";
@@ -21,35 +19,28 @@
 	import VoiceRecordButton from "$lib/components/VoiceRecordButton.svelte";
 	import VoiceCallScreen from "$lib/components/VoiceCallScreen.svelte";
 
+	const cart = useCart();
+	const isIosDevice = isIOS();
+
 	const INITIAL_CHIPS = [
 		"Нужна помощь с электрикой",
 		"Собираю щиток",
-		"Что выбрать для розеток?"
+		"Что выбрать для розеток?",
 	];
+	const DEFAULT_FOLLOWUP = ["Что ещё понадобится?", "Покажи аналоги", "Расскажи подробнее"];
 
-	const DEFAULT_FOLLOWUP = [
-		"Что ещё понадобится?",
-		"Покажи аналоги",
-		"Расскажи подробнее"
-	];
-
-	// Префикс для voice-режима — ИИ переключается на разговорный стиль
-	// (как Алиса: 1-2 коротких предложения, без таблиц/артикулов вслух).
-	// Бэкенд (Yandex Function) принимает text как пользовательское сообщение,
-	// LLM понимает такие маркеры в начале.
+	// Префикс для voice-режима — ИИ переключается на разговорный стиль (Алиса-style:
+	// 1-2 коротких предложения, без таблиц/диктовки артикулов).
 	const VOICE_PREFIX = "[ГОЛОСОВОЙ РЕЖИМ — отвечай разговорно, 1-2 коротких предложения, без таблиц, без диктовки артикулов. Артикулы и список товаров система покажет на экране, тебе их озвучивать не нужно.] ";
 
 	function parseChipsFromResponse(text) {
 		const match = text.match(/\[CHIPS:\s*(.+?)\]\s*$/);
 		if (match) {
 			const chips = match[1].split("|").map(c => c.trim()).filter(Boolean);
-			const cleanText = text.slice(0, match.index).trimEnd();
-			return { text: cleanText, chips };
+			return { text: text.slice(0, match.index).trimEnd(), chips };
 		}
 		return { text, chips: null };
 	}
-
-	let cartItems = $state([]);
 
 	let messages = $state([]);
 	let inputText = $state("");
@@ -58,35 +49,64 @@
 	let catalogItems = $state([]);
 	let searchEngine = $state(null);
 	let abortFn = $state(null);
-	let chatContainer;
+	let chatScroll;        // ссылка на scroll-контейнер
+	let inputEl;            // textarea
 	let selectedProduct = $state(null);
 	let aiChips = $state(null);
 
-	// Hands-free «звонок» — fullscreen VoiceCallScreen (как Алиса).
-	// Состояние делегируем компоненту через bind:state.
+	// Hands-free «звонок» — fullscreen VoiceCallScreen
 	let callOpen = $state(false);
 	let callState = $state("idle");
 	let callLastReply = $state("");
 	let callLastError = $state("");
-	let stopBargeIn = null; // функция остановки мониторинга микрофона
+	let stopBargeIn = null;
 	const voiceSupported = isSpeechSupported() && isRecognitionSupported();
 
-	function getCartIds() { return new Set(cartItems.map(i => i.id)); }
-	function getCanSend() { return inputText.trim().length > 0 && inputText.length <= 1500 && !isLoading; }
+	function getCanSend() {
+		return inputText.trim().length > 0 && inputText.length <= 1500 && !isLoading;
+	}
 	function getCurrentChips() {
 		if (messages.length === 0) return INITIAL_CHIPS;
 		if (isLoading) return [];
 		return aiChips || DEFAULT_FOLLOWUP;
 	}
 
+	// === visualViewport sync — ключ к корректной верстке на iOS ===
+	// Telegram Web использует именно этот паттерн: при появлении клавиатуры
+	// visualViewport.height уменьшается, а offsetTop может стать > 0 (visible
+	// область сдвигается). 100dvh / position:fixed без учёта offsetTop — не
+	// прижимаются к visible viewport, поэтому шапка и input уплывают.
+	function attachViewportSync() {
+		if (typeof window === "undefined" || !window.visualViewport) return () => {};
+		const vv = window.visualViewport;
+		const root = document.documentElement;
+		const update = () => {
+			root.style.setProperty("--vv-h", `${vv.height}px`);
+			root.style.setProperty("--vv-top", `${vv.offsetTop}px`);
+		};
+		update();
+		vv.addEventListener("resize", update);
+		vv.addEventListener("scroll", update);
+		return () => {
+			vv.removeEventListener("resize", update);
+			vv.removeEventListener("scroll", update);
+			root.style.removeProperty("--vv-h");
+			root.style.removeProperty("--vv-top");
+		};
+	}
+
+	let detachViewport = () => {};
+
 	onMount(async () => {
-		const unsub = cartStore.subscribe(v => { cartItems = v; });
+		// Помечаем body — это сигнал layout'у что мы внутри чата (BottomNav скрыт)
+		document.body.classList.add("in-chat");
+		detachViewport = attachViewportSync();
 
 		try {
 			const catalog = await loadCatalog();
 			catalogItems = catalog.items;
 			searchEngine = createSearchEngine(catalog.items);
-		} catch (e) {
+		} catch {
 			error = "Не удалось загрузить каталог";
 		}
 		try {
@@ -98,9 +118,14 @@
 				}
 			}
 		} catch {}
+		scrollToBottom();
 	});
 
 	onDestroy(() => {
+		if (typeof document !== "undefined") {
+			document.body.classList.remove("in-chat");
+		}
+		detachViewport();
 		abortFn?.();
 		stopBargeIn?.();
 		cancelSpeech();
@@ -114,11 +139,16 @@
 	}
 
 	function scrollToBottom() {
-		if (chatContainer) {
-			requestAnimationFrame(() => {
-				chatContainer.scrollTop = chatContainer.scrollHeight;
-			});
-		}
+		if (!chatScroll) return;
+		requestAnimationFrame(() => {
+			chatScroll.scrollTop = chatScroll.scrollHeight;
+		});
+	}
+
+	function autoResizeInput() {
+		if (!inputEl) return;
+		inputEl.style.height = "auto";
+		inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
 	}
 
 	async function sendMessage(text, { fromVoice = false } = {}) {
@@ -126,22 +156,22 @@
 		const userMsg = text.trim().slice(0, 1500);
 		const messageForAI = fromVoice ? VOICE_PREFIX + userMsg : userMsg;
 		inputText = "";
+		autoResizeInput();
 		error = null;
 		aiChips = null;
 
-		// В сообщениях сохраняем оригинальный текст без префикса (UI чистый)
 		messages = [...messages, { role: "user", content: userMsg, products: null, streaming: false }];
 		const aiMsgIndex = messages.length;
 		messages = [...messages, { role: "assistant", content: "", products: null, streaming: true }];
 		isLoading = true;
 		scrollToBottom();
 
-		const history = messages.slice(0, -2)
+		const history = messages
+			.slice(0, -2)
 			.filter(m => m.role === "user" || m.role === "assistant")
 			.map(m => ({ role: m.role, content: m.content }))
 			.slice(-20);
 
-		// Предварительный поиск: отбираем 50 релевантных товаров для AI
 		let catalogSubset = null;
 		if (searchEngine && catalogItems.length > 0) {
 			const relevant = selectItemsForAI(userMsg, history, searchEngine, catalogItems, 50);
@@ -152,7 +182,7 @@
 			message: messageForAI,
 			history,
 			catalogSubset,
-			onChunk(delta, fullText) {
+			onChunk(_delta, fullText) {
 				const clean = fullText.replace(/\[CHIPS:.*$/s, "").trimEnd();
 				messages[aiMsgIndex] = { ...messages[aiMsgIndex], content: clean, streaming: true };
 				messages = [...messages];
@@ -172,7 +202,6 @@
 				abortFn = null;
 				saveChat();
 				scrollToBottom();
-				// В hands-free режиме — озвучиваем ответ и параллельно слушаем для barge-in
 				if (callOpen) speakReplyInCall(cleanText);
 			},
 			onError(errMsg) {
@@ -195,19 +224,15 @@
 	}
 
 	// === Hands-free звонок ===
-
 	function openCall() {
 		if (!voiceSupported) return;
 		haptics.tap();
-		// КРИТИЧНО: pre-warm TTS прямо в click-handler, иначе iOS заблокирует
-		// первый speak() который придёт после async ответа от ИИ.
 		primeSpeech();
 		callLastError = "";
 		callLastReply = "";
 		callState = "idle";
 		callOpen = true;
 	}
-
 	function closeCall() {
 		callOpen = false;
 		callState = "idle";
@@ -215,22 +240,16 @@
 		stopBargeIn = null;
 		cancelSpeech();
 	}
-
 	function handleCallMessage(text) {
-		// Пользователь сказал в hands-free режиме → отправляем с voice-префиксом
 		callState = "thinking";
 		sendMessage(text, { fromVoice: true });
 	}
-
 	async function speakReplyInCall(replyText) {
 		if (!callOpen) return;
 		callState = "speaking";
 		callLastReply = replyText;
 
-		// Barge-in (мониторинг микрофона во время речи) ВКЛЮЧАЕМ ТОЛЬКО на Android.
-		// На iOS getUserMedia переключает аудио на earpiece (наушник у уха) вместо
-		// громкого динамика — пользователь не слышит ИИ. Поэтому на iOS используем
-		// tap-to-interrupt (тык в круг прерывает речь — обрабатывается в VoiceCallScreen).
+		// Barge-in только на Android — на iOS getUserMedia переключает аудио на earpiece
 		if (!isIosDevice) {
 			stopBargeIn?.();
 			stopBargeIn = await monitorAudioLevel({
@@ -253,27 +272,22 @@
 
 		stopBargeIn?.();
 		stopBargeIn = null;
-		if (callOpen) callState = "idle"; // VoiceCallScreen сам начнёт слушать
+		if (callOpen) callState = "idle";
 	}
-
-	// Tap-to-interrupt: пользователь тыкнул в круг во время speaking — прерываем
 	function interruptSpeech() {
 		if (callState !== "speaking") return;
 		haptics.tap();
 		cancelSpeech();
 		stopBargeIn?.();
 		stopBargeIn = null;
-		callState = "idle"; // VoiceCallScreen сам перезапустит listening
+		callState = "idle";
 	}
 
-	function handleAdd(product) { cartAdd(product); }
-	function handleRemove(id) { cartRemove(id); }
-	function handleAddAll(products) { products.forEach(p => cartAdd(p)); }
+	function handleAdd(product) { cart.add(product); }
+	function handleRemove(id) { cart.remove(id); }
+	function handleAddAll(products) { products.forEach(p => cart.add(p)); }
 	function handleChipSelect(chipText) { sendMessage(chipText); }
-	function handleVoiceResult(text) {
-		// Push-to-hold отдал результат — отправляем сразу (не нужно жать кнопку отправить)
-		sendMessage(text);
-	}
+	function handleVoiceResult(text) { sendMessage(text); }
 	function handleKeydown(e) {
 		if (e.key === "Enter" && !e.shiftKey && getCanSend()) {
 			e.preventDefault();
@@ -282,36 +296,27 @@
 	}
 </script>
 
-<div class="chat-page flex flex-col bg-base-200">
-	<div class="navbar bg-base-100 shadow-sm px-2 min-h-0 py-2 flex-shrink-0"
-		style="padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem)">
-		<button onclick={() => goto(`${base}/`)} class="btn btn-ghost btn-circle min-h-[44px] min-w-[44px]" aria-label="Назад">
+<div class="chat-root">
+	<header class="chat-header">
+		<button onclick={() => goto(`${base}/`)} class="header-btn" aria-label="Назад">
 			<ArrowLeft size={22} />
 		</button>
-		<span class="text-lg font-bold ml-2 flex-1">AI-помощник</span>
+		<span class="header-title">AI-помощник</span>
 		{#if voiceSupported}
-			<button
-				class="btn btn-ghost gap-1 min-h-[44px] px-3 text-base-content/70"
-				onclick={openCall}
-				aria-label="Голосовой режим"
-				title="Голосовой режим — общение голосом как в звонке"
-			>
+			<button class="header-btn" onclick={openCall} aria-label="Голосовой режим">
 				<Headphones size={20} />
-				<span class="text-xs hidden sm:inline">Голос</span>
 			</button>
 		{/if}
-	</div>
+	</header>
 
-	<div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-2" bind:this={chatContainer}>
+	<div class="chat-scroll" bind:this={chatScroll}>
 		{#if messages.length === 0}
-			<div class="text-center mt-12 px-6">
-				<div class="flex justify-center mb-4">
-					<div class="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-						<MessageSquare size={32} />
-					</div>
+			<div class="chat-empty">
+				<div class="empty-icon">
+					<MessageSquare size={32} />
 				</div>
-				<h2 class="text-lg font-semibold mb-2">Расскажите задачу</h2>
-				<p class="text-sm text-base-content/60 leading-relaxed">
+				<h2>Расскажите задачу</h2>
+				<p>
 					Опишите что нужно — соберу список товаров.{#if voiceSupported}<br/>Можно говорить голосом — удерживайте микрофон.{/if}
 				</p>
 			</div>
@@ -320,7 +325,7 @@
 		{#each messages as message, i (i)}
 			<ChatMessage
 				{message}
-				cartIds={getCartIds()}
+				cartIds={new Set(cart.items.map(i => i.id))}
 				onadd={handleAdd}
 				onremove={handleRemove}
 				onaddall={handleAddAll}
@@ -334,18 +339,18 @@
 	</div>
 
 	{#if getCurrentChips().length > 0}
-		<QuickChips
-			chips={getCurrentChips()}
-			onselect={handleChipSelect}
-			disabled={isLoading}
-		/>
+		<div class="chat-chips">
+			<QuickChips chips={getCurrentChips()} onselect={handleChipSelect} disabled={isLoading} />
+		</div>
 	{/if}
 
-	<div class="p-3 bg-base-100 border-t border-base-300 flex gap-2 items-end safe-bottom">
+	<footer class="chat-input">
 		<textarea
-			class="textarea textarea-bordered flex-1 min-h-[44px] max-h-[120px] resize-none text-base"
+			bind:this={inputEl}
+			class="input-field"
 			placeholder="Сообщение..."
 			bind:value={inputText}
+			oninput={autoResizeInput}
 			onkeydown={handleKeydown}
 			maxlength="1500"
 			rows="1"
@@ -353,29 +358,18 @@
 		></textarea>
 
 		{#if inputText.trim()}
-			<!-- Если что-то напечатано — показываем "Отправить" -->
-			<button
-				class="btn btn-primary btn-circle min-h-[48px] min-w-[48px]"
-				onclick={() => sendMessage(inputText)}
-				disabled={!getCanSend()}
-				aria-label="Отправить"
-			>
+			<button class="send-btn" onclick={() => sendMessage(inputText)} disabled={!getCanSend()} aria-label="Отправить">
 				<Send size={20} />
 			</button>
 		{:else}
-			<!-- Поле пустое — большая push-to-hold кнопка микрофона (Telegram-style) -->
-			<VoiceRecordButton
-				size={48}
-				disabled={isLoading}
-				onresult={handleVoiceResult}
-			/>
+			<VoiceRecordButton size={44} disabled={isLoading} onresult={handleVoiceResult} />
 		{/if}
-	</div>
+	</footer>
 
 	{#if inputText.length > 1200}
-		<p class="text-xs text-center pb-1 {inputText.length > 1500 ? 'text-error' : 'text-base-content/60'}">
+		<div class="char-counter" class:over={inputText.length > 1500}>
 			{inputText.length}/1500
-		</p>
+		</div>
 	{/if}
 </div>
 
@@ -397,19 +391,165 @@
 {/if}
 
 <style>
-	/* Чат-страница как fixed-overlay на весь viewport — самый надёжный способ
-	   жить в PWA на iOS Safari, где клавиатура двигает visible viewport, а
-	   100dvh пересчитывается с задержкой. Fixed-элементы автоматически
-	   прижимаются к visible viewport: при показе клавиатуры низ страницы
-	   уезжает вверх вместе с keyboard inset, шапка и поле ввода не уплывают.
-	   bottom = --reserved-bottom (56px+safe когда BottomNav на экране,
-	   0 когда body.kb-open — BottomNav уже скрыт через translateY). */
-	.chat-page {
+	/* === Telegram-style fullscreen чат ===
+	   chat-root прибивается к visible viewport через --vv-top / --vv-h, которые
+	   JS подвязывает к window.visualViewport. Это критично для iOS Safari —
+	   без offsetTop fixed-элементы остаются на старом месте, когда visible
+	   область уехала вверх под клавиатурой.
+	   Fallback на 100dvh для серверного рендеринга и старых браузеров. */
+	.chat-root {
 		position: fixed;
-		top: 0;
 		left: 0;
 		right: 0;
-		bottom: var(--reserved-bottom, 0px);
-		z-index: 30;
+		top: var(--vv-top, 0px);
+		height: var(--vv-h, 100dvh);
+		display: flex;
+		flex-direction: column;
+		background: var(--color-base-200);
+		z-index: 60;
+		overflow: hidden;
+	}
+
+	.chat-header {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 8px;
+		padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+		background: var(--color-base-100);
+		border-bottom: 1px solid var(--color-base-300);
+	}
+	.header-btn {
+		min-width: 44px;
+		min-height: 44px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 9999px;
+		color: var(--color-base-content);
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+	.header-btn:active {
+		background: color-mix(in oklch, var(--color-base-content) 10%, transparent);
+	}
+	.header-title {
+		flex: 1;
+		font-size: 17px;
+		font-weight: 600;
+		color: var(--color-base-content);
+	}
+
+	.chat-scroll {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		padding: 12px 16px;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.chat-empty {
+		text-align: center;
+		margin-top: 48px;
+		padding: 0 24px;
+	}
+	.empty-icon {
+		width: 64px;
+		height: 64px;
+		margin: 0 auto 16px;
+		border-radius: 16px;
+		background: color-mix(in oklch, var(--color-primary) 12%, transparent);
+		color: var(--color-primary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.chat-empty h2 {
+		font-size: 18px;
+		font-weight: 600;
+		margin-bottom: 8px;
+		color: var(--color-base-content);
+	}
+	.chat-empty p {
+		font-size: 14px;
+		line-height: 1.5;
+		color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+	}
+
+	.chat-chips {
+		flex-shrink: 0;
+	}
+
+	.chat-input {
+		flex-shrink: 0;
+		display: flex;
+		align-items: flex-end;
+		gap: 8px;
+		padding: 8px 12px;
+		padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+		background: var(--color-base-100);
+		border-top: 1px solid var(--color-base-300);
+	}
+	.input-field {
+		flex: 1;
+		min-height: 44px;
+		max-height: 120px;
+		padding: 10px 14px;
+		border-radius: 22px;
+		border: 1px solid var(--color-base-300);
+		background: var(--color-base-200);
+		color: var(--color-base-content);
+		font-size: 16px;
+		line-height: 1.4;
+		font-family: inherit;
+		resize: none;
+		outline: none;
+		transition: border-color 0.15s ease;
+	}
+	.input-field:focus {
+		border-color: var(--color-primary);
+	}
+	.input-field:disabled {
+		opacity: 0.6;
+	}
+	.send-btn {
+		flex-shrink: 0;
+		width: 44px;
+		height: 44px;
+		border-radius: 9999px;
+		border: none;
+		background: var(--color-primary);
+		color: var(--color-primary-content);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		transition: opacity 0.15s ease, transform 0.1s ease;
+	}
+	.send-btn:active {
+		transform: scale(0.94);
+	}
+	.send-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.char-counter {
+		flex-shrink: 0;
+		font-size: 11px;
+		text-align: center;
+		padding-bottom: 4px;
+		color: color-mix(in oklch, var(--color-base-content) 50%, transparent);
+	}
+	.char-counter.over {
+		color: var(--color-error);
 	}
 </style>
