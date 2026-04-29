@@ -100,26 +100,6 @@
 		document.addEventListener("focusin", onFocusIn);
 		document.addEventListener("focusout", onFocusOut);
 
-		// === visualViewport sync ===
-		// На iOS Safari `100dvh` НЕ всегда пересчитывается синхронно с появлением
-		// клавиатуры — viewport уезжает, шапка чата уходит за верх. visualViewport
-		// API даёт точную видимую высоту с учётом клавиатуры. Записываем в CSS
-		// переменную --visual-vh, которой пользуется chat-страница (h: var(--visual-vh)).
-		let detachVV = () => {};
-		if (typeof window !== "undefined" && window.visualViewport) {
-			const vv = window.visualViewport;
-			const updateVV = () => {
-				document.documentElement.style.setProperty("--visual-vh", `${vv.height}px`);
-			};
-			updateVV();
-			vv.addEventListener("resize", updateVV);
-			vv.addEventListener("scroll", updateVV);
-			detachVV = () => {
-				vv.removeEventListener("resize", updateVV);
-				vv.removeEventListener("scroll", updateVV);
-			};
-		}
-
 		// Свайп-навигация между разделами — работает везде через Pointer Events.
 		const detachSwipe = attachSwipeNav({
 			onLeft: () => navigateTab(+1),  // палец влево = следующий таб
@@ -137,7 +117,6 @@
 			window.removeEventListener("zalassist:open-cart", onOpenCart);
 			detachSwipe();
 			detachTheme();
-			detachVV();
 		};
 	});
 </script>

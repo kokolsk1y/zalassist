@@ -397,13 +397,19 @@
 {/if}
 
 <style>
-	/* Высота чат-вью завязана на visualViewport (--visual-vh) с фолбэком на 100dvh.
-	   Снизу резервируем место под BottomNav (--reserved-bottom: 56px+safe-area).
-	   Когда body.kb-open — клавиатура поднята, BottomNav скрыт, --reserved-bottom
-	   обнуляется → чат разворачивается на освободившуюся высоту, поле ввода
-	   прижимается к верхней кромке клавиатуры, шапка остаётся на месте. */
+	/* Чат-страница как fixed-overlay на весь viewport — самый надёжный способ
+	   жить в PWA на iOS Safari, где клавиатура двигает visible viewport, а
+	   100dvh пересчитывается с задержкой. Fixed-элементы автоматически
+	   прижимаются к visible viewport: при показе клавиатуры низ страницы
+	   уезжает вверх вместе с keyboard inset, шапка и поле ввода не уплывают.
+	   bottom = --reserved-bottom (56px+safe когда BottomNav на экране,
+	   0 когда body.kb-open — BottomNav уже скрыт через translateY). */
 	.chat-page {
-		height: var(--visual-vh, 100dvh);
-		padding-bottom: var(--reserved-bottom, 0px);
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: var(--reserved-bottom, 0px);
+		z-index: 30;
 	}
 </style>
